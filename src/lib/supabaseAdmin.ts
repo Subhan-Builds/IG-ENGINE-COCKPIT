@@ -1,0 +1,16 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gbjdutzarsetdswtpxwj.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
+
+if (!supabaseServiceKey) {
+  console.warn('SUPABASE_SERVICE_KEY is missing on server');
+}
+
+// Server-side admin client that bypasses RLS for mutations
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
