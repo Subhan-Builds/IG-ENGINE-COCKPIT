@@ -22,15 +22,16 @@ export interface Experiment {
 const DEFAULT_EXPERIMENTS: Experiment[] = [
   {
     id: 'exp-01-posting-time',
-    name: 'Posting-Time Engagement Optimization',
-    objective: 'Measure whether late evening slots (18:00, 21:00 UTC) outperform the morning control slot (09:00 UTC) in Reel plays and interaction rate.',
+    name: 'PKT Posting-Time Engagement Optimization',
+    objective:
+      'Measure whether evening slots (17:00, 21:00 PKT) outperform the morning baseline slot (09:00 PKT) in Reel plays and interaction rate.',
     variable_tested: 'posting_time',
-    control_baseline: '09:00 UTC (Control)',
-    variants: ['09:00 UTC (Control)', '15:00 UTC', '18:00 UTC', '21:00 UTC'],
+    control_baseline: '09:00 PKT (Baseline)',
+    variants: ['09:00 PKT (Baseline)', '13:00 PKT', '17:00 PKT', '21:00 PKT'],
     metrics_to_evaluate: ['views', 'reach', 'likes', 'comments', 'saved', 'shares'],
     start_date: '2026-09-25T00:00:00Z',
     end_date: '2026-10-25T00:00:00Z',
-    posts_per_day: 3,
+    posts_per_day: 4,
     sample_size_target: 30,
     status: 'active',
     created_at: '2026-09-25T12:00:00Z',
@@ -38,19 +39,24 @@ const DEFAULT_EXPERIMENTS: Experiment[] = [
 ];
 
 async function getStoredExperiments(): Promise<Experiment[]> {
-  const { data } = await supabaseAdmin
-    .from('settings')
-    .select('value')
-    .eq('key', 'experiments_store')
-    .single();
+  try {
+    const { data } = await supabaseAdmin
+      .from('settings')
+      .select('value')
+      .eq('key', 'experiments_store')
+      .single();
 
-  if (data?.value) {
-    try {
-      return JSON.parse(data.value);
-    } catch {
-      // Fallback
+    if (data?.value) {
+      try {
+        const parsed = JSON.parse(data.value);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch {
+        // Fallback
+      }
     }
-  }
+  } catch (err) {}
   return DEFAULT_EXPERIMENTS;
 }
 
