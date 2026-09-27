@@ -3,7 +3,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light';
-export type TabType = 'overview' | 'queue' | 'calendar' | 'posts' | 'analytics' | 'experiments' | 'health' | 'settings';
+export type TabType =
+  | 'overview'
+  | 'accounts'
+  | 'content'
+  | 'queue'
+  | 'calendar'
+  | 'posts'
+  | 'analytics'
+  | 'experiments'
+  | 'health'
+  | 'settings';
 
 export interface ToastMessage {
   id: string;
@@ -18,6 +28,8 @@ interface AppContextType {
   toggleTheme: () => void;
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  selectedAccountId: string;
+  setSelectedAccountId: (id: string) => void;
   advancedMode: boolean;
   setAdvancedMode: (val: boolean) => void;
   toasts: ToastMessage[];
@@ -30,6 +42,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
   const [advancedMode, setAdvancedMode] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -47,6 +60,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const savedAdvanced = localStorage.getItem('ig_engine_advanced') === 'true';
     setAdvancedMode(savedAdvanced);
+
+    const savedAccount = localStorage.getItem('ig_engine_selected_account');
+    if (savedAccount) {
+      setSelectedAccountId(savedAccount);
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -54,6 +72,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTheme(next);
     localStorage.setItem('ig_engine_theme', next);
     document.documentElement.classList.toggle('dark', next === 'dark');
+  };
+
+  const handleSetSelectedAccount = (id: string) => {
+    setSelectedAccountId(id);
+    localStorage.setItem('ig_engine_selected_account', id);
   };
 
   const handleSetAdvancedMode = (val: boolean) => {
@@ -85,6 +108,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toggleTheme,
         activeTab,
         setActiveTab,
+        selectedAccountId,
+        setSelectedAccountId: handleSetSelectedAccount,
         advancedMode,
         setAdvancedMode: handleSetAdvancedMode,
         toasts,
