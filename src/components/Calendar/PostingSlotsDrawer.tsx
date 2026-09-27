@@ -23,7 +23,7 @@ export function PostingSlotsDrawer({ isOpen, onClose, postingTimesStr, onSave }:
 
   const handleAddSlot = () => {
     if (!newSlot || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(newSlot)) {
-      addToast('warning', 'Invalid Format', 'Please enter time in HH:MM format (24-hour UTC).');
+      addToast('warning', 'Invalid Format', 'Please enter time in HH:MM format (24-hour PKT).');
       return;
     }
     if (slots.includes(newSlot)) {
@@ -47,7 +47,7 @@ export function PostingSlotsDrawer({ isOpen, onClose, postingTimesStr, onSave }:
     try {
       setIsSaving(true);
       await onSave(slots.join(','));
-      addToast('success', 'Posting Slots Saved', `Daily slots updated to: ${slots.join(', ')} UTC`);
+      addToast('success', 'Posting Slots Saved', `Daily slots updated to: ${slots.join(', ')} PKT`);
       onClose();
     } catch (err: any) {
       addToast('error', 'Failed to Save Slots', err.message);
@@ -67,7 +67,7 @@ export function PostingSlotsDrawer({ isOpen, onClose, postingTimesStr, onSave }:
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-blue-500" />
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Daily Posting Slots (UTC)</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Daily Posting Slots (PKT / Asia-Karachi)</h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
             <X className="w-5 h-5" />
@@ -75,25 +75,20 @@ export function PostingSlotsDrawer({ isOpen, onClose, postingTimesStr, onSave }:
         </div>
 
         <p className="text-xs text-slate-500 leading-relaxed">
-          The Drive Importer assigns scheduled posting times according to these daily UTC slots.
+          The Drive Importer assigns scheduled posting times according to these daily Pakistan Standard Time (PKT) slots.
         </p>
 
         {/* Slots List */}
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
           {slots.map((slot) => {
-            const [h, m] = slot.split(':').map(Number);
-            const now = new Date();
-            const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m));
-            const localFormatted = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
             return (
               <div
                 key={slot}
                 className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">{slot} UTC</span>
-                  <span className="text-[11px] text-slate-400 font-mono">({localFormatted} local)</span>
+                  <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">{slot} PKT</span>
+                  <span className="text-[11px] text-slate-400 font-mono">(Asia/Karachi)</span>
                 </div>
 
                 <button
@@ -111,7 +106,7 @@ export function PostingSlotsDrawer({ isOpen, onClose, postingTimesStr, onSave }:
         <div className="flex items-center gap-2 pt-2">
           <input
             type="text"
-            placeholder="e.g. 18:00"
+            placeholder="e.g. 20:30 (PKT)"
             value={newSlot}
             onChange={(e) => setNewSlot(e.target.value)}
             className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
