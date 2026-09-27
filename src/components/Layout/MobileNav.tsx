@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApp, TabType } from '@/lib/themeContext';
 import {
   LayoutDashboard,
+  Users,
   Film,
   Calendar,
   Layers,
@@ -22,12 +23,14 @@ export function MobileNav() {
 
   const mainTabs: { id: TabType; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Command', icon: LayoutDashboard },
-    { id: 'queue', label: 'Queue', icon: Film },
+    { id: 'accounts', label: 'Accounts', icon: Users },
+    { id: 'content', label: 'Content', icon: Film },
+    { id: 'queue', label: 'Queue', icon: Layers },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'posts', label: 'Posts', icon: Layers },
   ];
 
   const secondaryTabs: { id: TabType; label: string; icon: React.ElementType }[] = [
+    { id: 'posts', label: 'Published Reels', icon: Film },
     { id: 'analytics', label: 'Analytics & Insights', icon: BarChart3 },
     { id: 'experiments', label: 'Experiment Lab', icon: FlaskConical },
     { id: 'health', label: 'System Health', icon: Activity },
@@ -51,7 +54,7 @@ export function MobileNav() {
               key={tab.id}
               onClick={() => handleSelect(tab.id)}
               className={cn(
-                'flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all',
+                'flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all',
                 isActive
                   ? 'text-blue-600 dark:text-blue-400 font-semibold'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -67,7 +70,7 @@ export function MobileNav() {
         <button
           onClick={() => setDrawerOpen(true)}
           className={cn(
-            'flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all',
+            'flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all',
             secondaryTabs.some((t) => t.id === activeTab)
               ? 'text-blue-600 dark:text-blue-400 font-semibold'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
