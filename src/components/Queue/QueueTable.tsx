@@ -82,7 +82,7 @@ export function QueueTable({ videos, onRefresh }: QueueTableProps) {
               <tr>
                 <th className="py-3 px-4">Video / File</th>
                 <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4">Scheduled Slot (UTC)</th>
+                <th className="py-3 px-4">Scheduled Slot (PKT)</th>
                 <th className="py-3 px-4">Caption Preview</th>
                 <th className="py-3 px-4 text-center">Attempts</th>
                 <th className="py-3 px-4 text-right">Actions</th>
