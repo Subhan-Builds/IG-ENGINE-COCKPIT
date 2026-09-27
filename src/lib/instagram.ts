@@ -32,15 +32,36 @@ export interface InstagramMediaItem {
   };
 }
 
-const IG_TOKEN = process.env.IG_ACCESS_TOKEN || '';
-const IG_USER_ID = process.env.IG_USER_ID || '38399200766389884';
+const DEFAULT_IG_TOKEN = process.env.IG_ACCESS_TOKEN || '';
+const DEFAULT_IG_USER_ID = process.env.IG_USER_ID || '38399200766389884';
 const BASE_URL = 'https://graph.instagram.com/v21.0';
 
-export async function getAccountInfo(): Promise<InstagramAccount | null> {
-  if (!IG_TOKEN) return null;
+export async function validateInstagramToken(token: string): Promise<InstagramAccount | null> {
+  if (!token) return null;
+  try {
+    const res = await fetch(`${BASE_URL}/me?fields=id,username,name,account_type&access_token=${token}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('validateInstagramToken failed:', res.status, errText);
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('validateInstagramToken network error:', err);
+    return null;
+  }
+}
+
+export async function getAccountInfo(userId?: string, token?: string): Promise<InstagramAccount | null> {
+  const activeToken = token || DEFAULT_IG_TOKEN;
+  const activeUserId = userId || DEFAULT_IG_USER_ID;
+  if (!activeToken) return null;
+
   try {
     const res = await fetch(
-      `${BASE_URL}/${IG_USER_ID}?fields=id,username,name,account_type,profile_picture_url&access_token=${IG_TOKEN}`,
+      `${BASE_URL}/${activeUserId}?fields=id,username,name,account_type,profile_picture_url&access_token=${activeToken}`,
       { next: { revalidate: 300 } }
     );
     if (!res.ok) {
@@ -54,13 +75,16 @@ export async function getAccountInfo(): Promise<InstagramAccount | null> {
   }
 }
 
-export async function getPublishingLimit(): Promise<PublishingLimit> {
-  if (!IG_TOKEN) {
+export async function getPublishingLimit(userId?: string, token?: string): Promise<PublishingLimit> {
+  const activeToken = token || DEFAULT_IG_TOKEN;
+  const activeUserId = userId || DEFAULT_IG_USER_ID;
+
+  if (!activeToken) {
     return { quota_total: 100, quota_usage: 0, quota_duration: 86400, remaining: 100 };
   }
   try {
     const res = await fetch(
-      `${BASE_URL}/${IG_USER_ID}/content_publishing_limit?fields=config,quota_usage&access_token=${IG_TOKEN}`,
+      `${BASE_URL}/${activeUserId}/content_publishing_limit?fields=config,quota_usage&access_token=${activeToken}`,
       { next: { revalidate: 60 } }
     );
     if (res.ok) {
@@ -84,11 +108,14 @@ export async function getPublishingLimit(): Promise<PublishingLimit> {
   return { quota_total: 100, quota_usage: 0, quota_duration: 86400, remaining: 100 };
 }
 
-export async function getRecentMedia(): Promise<InstagramMediaItem[]> {
-  if (!IG_TOKEN) return [];
+export async function getRecentMedia(userId?: string, token?: string): Promise<InstagramMediaItem[]> {
+  const activeToken = token || DEFAULT_IG_TOKEN;
+  const activeUserId = userId || DEFAULT_IG_USER_ID;
+
+  if (!activeToken) return [];
   try {
     const fields = 'id,caption,media_type,media_url,permalink,thumbnail_url,timestamp,like_count,comments_count';
-    const res = await fetch(`${BASE_URL}/${IG_USER_ID}/media?fields=${fields}&access_token=${IG_TOKEN}`, {
+    const res = await fetch(`${BASE_URL}/${activeUserId}/media?fields=${fields}&access_token=${activeToken}`, {
       next: { revalidate: 120 },
     });
     if (!res.ok) {
@@ -103,7 +130,7 @@ export async function getRecentMedia(): Promise<InstagramMediaItem[]> {
       items.slice(0, 5).map(async (item) => {
         try {
           const insightRes = await fetch(
-            `${BASE_URL}/${item.id}/insights?metric=views,reach,saved,shares,total_interactions&access_token=${IG_TOKEN}`,
+            `${BASE_URL}/${item.id}/insights?metric=views,reach,saved,shares,total_interactions&access_token=${activeToken}`,
             { next: { revalidate: 300 } }
           );
           if (insightRes.ok) {
