@@ -57,20 +57,21 @@ export function AnalyticsOverview({ posts }: AnalyticsOverviewProps) {
     date: p.published_at ? new Date(p.published_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : `Day ${idx + 1}`,
   })).reverse();
 
-  // Posting slot distribution performance
+  // Posting slot distribution performance (PKT)
   const slotPerformance: Record<string, { views: number; count: number }> = {
-    '09:00 UTC': { views: 0, count: 0 },
-    '15:00 UTC': { views: 0, count: 0 },
-    '20:00 UTC': { views: 0, count: 0 },
+    '09:00 PKT': { views: 0, count: 0 },
+    '15:00 PKT': { views: 0, count: 0 },
+    '20:00 PKT': { views: 0, count: 0 },
   };
 
   for (const p of posts) {
     if (p.scheduled_at) {
       const d = new Date(p.scheduled_at);
-      const h = d.getUTCHours();
-      let slotKey = '09:00 UTC';
-      if (h >= 13 && h <= 17) slotKey = '15:00 UTC';
-      else if (h >= 18) slotKey = '20:00 UTC';
+      // Convert to PKT hour (UTC+5)
+      const pktHour = (d.getUTCHours() + 5) % 24;
+      let slotKey = '09:00 PKT';
+      if (pktHour >= 13 && pktHour <= 17) slotKey = '15:00 PKT';
+      else if (pktHour >= 18) slotKey = '20:00 PKT';
 
       slotPerformance[slotKey].views += p.liveMetrics?.views || 0;
       slotPerformance[slotKey].count += 1;
@@ -195,7 +196,7 @@ export function AnalyticsOverview({ posts }: AnalyticsOverviewProps) {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Posting-Time Performance</h3>
-              <p className="text-xs text-slate-400">Average plays observed per daily UTC slot</p>
+              <p className="text-xs text-slate-400">Average plays observed per daily Pakistan Standard Time (PKT) slot</p>
             </div>
           </div>
 
