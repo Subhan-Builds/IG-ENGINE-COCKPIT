@@ -71,7 +71,7 @@ export function CalendarView({
           <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-mono">
             <span>Daily Slots:</span>
             <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 font-semibold">
-              {postingTimesStr} UTC
+              {postingTimesStr} PKT
             </span>
           </div>
 
