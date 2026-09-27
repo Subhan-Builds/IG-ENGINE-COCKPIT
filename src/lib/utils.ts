@@ -26,22 +26,40 @@ export function formatDateTime(dateStr: string | null | undefined): string {
   if (!dateStr) return 'Unscheduled';
   try {
     const d = new Date(dateStr);
-    return format(d, 'MMM d, yyyy · HH:mm');
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Karachi',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    return `${formatter.format(d)} PKT`;
   } catch {
     return dateStr;
   }
 }
 
-export function formatTimeUTC(dateStr: string | null | undefined): string {
+export function formatTimePKT(dateStr: string | null | undefined): string {
   if (!dateStr) return '--:--';
   try {
     const d = new Date(dateStr);
-    const h = String(d.getUTCHours()).padStart(2, '0');
-    const m = String(d.getUTCMinutes()).padStart(2, '0');
-    return `${h}:${m} UTC`;
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Karachi',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    return `${formatter.format(d)} PKT`;
   } catch {
     return '--:--';
   }
+}
+
+export function formatTimeUTC(dateStr: string | null | undefined): string {
+  // Alias to PKT as primary user-facing scheduling timezone
+  return formatTimePKT(dateStr);
 }
 
 export function formatRelative(dateStr: string | null | undefined): string {
