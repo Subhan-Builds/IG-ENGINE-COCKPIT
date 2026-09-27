@@ -57,11 +57,11 @@ export function SlotPicker({ initialUtcIso, onChange }: SlotPickerProps) {
       <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
         <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-blue-500" />
-          Schedule Slot Time
+          Schedule Slot Time (PKT)
         </span>
         <span className="flex items-center gap-1 text-[11px] text-slate-400">
           <Globe className="w-3 h-3" />
-          Timezone Aware
+          Asia/Karachi (PKT)
         </span>
       </div>
 
@@ -73,8 +73,8 @@ export function SlotPicker({ initialUtcIso, onChange }: SlotPickerProps) {
       />
 
       <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1">
-        <span>Stored as UTC:</span>
-        <span className="text-blue-600 dark:text-blue-400 font-medium">{utcDisplay}</span>
+        <span>Timezone:</span>
+        <span className="text-blue-600 dark:text-blue-400 font-medium">Asia/Karachi (UTC+5)</span>
       </div>
     </div>
   );
