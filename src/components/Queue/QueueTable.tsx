@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Search, Film, Clock, Edit3, RefreshCw, EyeOff, Play, Filter, ArrowUpDown } from 'lucide-react';
 import { StatusBadge } from '@/components/UI/Badge';
-import { formatBytes, formatDateTime, formatTimeUTC } from '@/lib/utils';
+import { formatBytes, formatDateTime, formatTimePKT } from '@/lib/utils';
 import { VideoModal } from './VideoModal';
 
 interface QueueTableProps {
@@ -129,7 +129,7 @@ export function QueueTable({ videos, onRefresh }: QueueTableProps) {
                       {video.scheduled_at ? (
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <span>{formatTimeUTC(video.scheduled_at)}</span>
+                          <span>{formatTimePKT(video.scheduled_at)}</span>
                         </div>
                       ) : (
                         <span className="text-slate-400">Unassigned</span>
