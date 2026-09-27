@@ -15,7 +15,7 @@ import {
 import { ChevronLeft, ChevronRight, Clock, Settings, Film, CheckCircle2, AlertTriangle, Layers } from 'lucide-react';
 import { PostingSlotsDrawer } from './PostingSlotsDrawer';
 import { VideoModal } from '@/components/Queue/VideoModal';
-import { formatTimeUTC } from '@/lib/utils';
+import { formatTimePKT } from '@/lib/utils';
 
 interface CalendarViewProps {
   videos: any[];
@@ -101,9 +101,16 @@ export function CalendarView({
         {/* Days Grid */}
         <div className="grid grid-cols-7 gap-2">
           {daysInMonth.map((day) => {
+            const dayStr = format(day, 'yyyy-MM-dd');
             const dayVideos = videos.filter((v) => {
               const target = v.scheduled_at || v.published_at;
-              return target ? isSameDay(new Date(target), day) : false;
+              if (!target) return false;
+              try {
+                const targetPktStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi' }).format(new Date(target));
+                return targetPktStr === dayStr;
+              } catch {
+                return isSameDay(new Date(target), day);
+              }
             });
 
             const isCurrentDay = isToday(day);
@@ -162,7 +169,7 @@ export function CalendarView({
                           <Clock className="w-3 h-3 shrink-0" />
                         )}
                         <span className="font-mono font-medium shrink-0">
-                          {formatTimeUTC(v.scheduled_at || v.published_at)}
+                          {formatTimePKT(v.scheduled_at || v.published_at)}
                         </span>
                         <span className="truncate">{v.drive_filename}</span>
                       </button>
