@@ -12,6 +12,7 @@ import {
   KeyRound,
   HardDrive,
   Flame,
+  Clock,
 } from 'lucide-react';
 import { useApp } from '@/lib/themeContext';
 import { ConfirmDialog } from '@/components/UI/ConfirmDialog';
@@ -39,6 +40,43 @@ export function SettingsView({ settings, onRefresh, onSaveSettings }: SettingsVi
     action: async () => {},
   });
 
+  const getSlotsForFrequency = (freq: number): string => {
+    switch (freq) {
+      case 1:
+        return '20:00';
+      case 2:
+        return '13:00, 20:00';
+      case 3:
+        return '09:00, 15:00, 20:00';
+      case 4:
+        return '09:00, 13:00, 17:00, 21:00';
+      case 5:
+        return '09:00, 12:00, 15:00, 18:00, 21:00';
+      case 10:
+        return '08:00, 09:30, 11:00, 12:30, 14:00, 15:30, 17:00, 18:30, 20:00, 21:30';
+      default:
+        // Distribute evenly between 08:00 and 22:00 PKT
+        const slots: string[] = [];
+        const startHour = 8;
+        const totalSpan = 14;
+        for (let i = 0; i < freq; i++) {
+          const h = Math.floor(startHour + (i * totalSpan) / freq);
+          const m = Math.floor(((startHour + (i * totalSpan) / freq) % 1) * 60);
+          slots.push(`${String(h).padStart(2, '0')}:${String(m < 30 ? 0 : 30).padStart(2, '0')}`);
+        }
+        return slots.join(', ');
+    }
+  };
+
+  const handleFrequencyChange = (val: string) => {
+    const f = parseInt(val, 10);
+    const updated = { ...formData, posting_frequency: val };
+    if (!isNaN(f) && f > 0 && f <= 25) {
+      updated.posting_times = getSlotsForFrequency(f);
+    }
+    setFormData(updated);
+  };
+
   const handleChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
@@ -48,7 +86,7 @@ export function SettingsView({ settings, onRefresh, onSaveSettings }: SettingsVi
     try {
       setIsSaving(true);
       await onSaveSettings(formData);
-      addToast('success', 'Settings Saved', 'Engine configuration updated successfully in Supabase.');
+      addToast('success', 'Settings Synchronized', 'Engine configuration updated and synchronized in Supabase.');
       onRefresh();
     } catch (err: any) {
       addToast('error', 'Save Failed', err.message);
@@ -76,12 +114,12 @@ export function SettingsView({ settings, onRefresh, onSaveSettings }: SettingsVi
     <div className="space-y-6 max-w-4xl">
       <form onSubmit={handleSave} className="space-y-6">
         {/* 1. Core Automation Settings */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
+        <div className="p-6 rounded-[28px] bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <Sliders className="w-5 h-5 text-blue-500" />
             <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Automation Rules</h3>
-              <p className="text-xs text-slate-400">Controls publishing frequency and buffer thresholds</p>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Automation Rules & Scheduling</h3>
+              <p className="text-xs text-slate-400">Controls publishing frequency, PKT slots, and buffer thresholds</p>
             </div>
           </div>
 
@@ -94,10 +132,25 @@ export function SettingsView({ settings, onRefresh, onSaveSettings }: SettingsVi
                 type="number"
                 min="1"
                 max="25"
-                value={formData.posting_frequency || '3'}
-                onChange={(e) => handleChange('posting_frequency', e.target.value)}
+                value={formData.posting_frequency || '4'}
+                onChange={(e) => handleFrequencyChange(e.target.value)}
                 className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="font-semibold text-slate-700 dark:text-slate-300">
+                Synchronized Daily Slots in PKT (Asia/Karachi)
+              </label>
+              <input
+                type="text"
+                value={formData.posting_times || '09:00, 13:00, 17:00, 21:00'}
+                onChange={(e) => handleChange('posting_times', e.target.value)}
+                className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Automatically adapts to posting frequency count. Comma-separated HH:MM.
+              </span>
             </div>
 
             <div>
@@ -128,24 +181,24 @@ export function SettingsView({ settings, onRefresh, onSaveSettings }: SettingsVi
               />
             </div>
 
-            <div>
+            <div className="sm:col-span-2">
               <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Global Publishing Switch
+                Global Autonomous Publishing Switch
               </label>
               <select
                 value={formData.posting_enabled || 'true'}
                 onChange={(e) => handleChange('posting_enabled', e.target.value)}
                 className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="true">Enabled (Autonomous Publishing)</option>
-                <option value="false">Paused (Hold All Posts)</option>
+                <option value="true">Enabled (Autonomous Publishing on Schedule)</option>
+                <option value="false">Paused (Hold All Scheduled Reels)</option>
               </select>
             </div>
           </div>
         </div>
 
         {/* 2. Global Caption Template */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
+        <div className="p-6 rounded-[28px] bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <FileText className="w-5 h-5 text-indigo-500" />
             <div>
@@ -170,7 +223,7 @@ export function SettingsView({ settings, onRefresh, onSaveSettings }: SettingsVi
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-lg shadow-blue-600/25 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-semibold text-xs shadow-md transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             <span>{isSaving ? 'Saving Changes...' : 'Save Settings'}</span>
@@ -179,7 +232,7 @@ export function SettingsView({ settings, onRefresh, onSaveSettings }: SettingsVi
       </form>
 
       {/* 3. Advanced Mode & Danger Zone */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
+      <div className="p-6 rounded-[28px] bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <Sparkles className="w-5 h-5 text-amber-500" />
