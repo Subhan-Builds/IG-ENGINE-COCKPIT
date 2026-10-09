@@ -108,7 +108,7 @@ export async function GET() {
       });
     }
   } catch (err: any) {
-    hfStatus = 'degraded';
+    hfStatus = 'warning';
   }
 
   // 4. GitHub Actions Check
