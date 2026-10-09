@@ -15,19 +15,69 @@ interface CapsuleSliderChartProps {
 }
 
 export function CapsuleSliderChart({ posts = [] }: CapsuleSliderChartProps) {
-  const [selectedRange, setSelectedRange] = useState('2026');
+  const currentYear = new Date().getFullYear().toString();
+  const [selectedRange, setSelectedRange] = useState(currentYear);
 
-  // Build real or realistic date points based on actual published records
-  const samplePoints: ChartPoint[] = [
-    { date: '21 Sep', operationsVal: 0.7, transferVal: 0.4 },
-    { date: '22 Sep', operationsVal: 0.5, transferVal: 0.25 },
-    { date: '23 Sep', operationsVal: 0.85, transferVal: 0.5 },
-    { date: '24 Sep', operationsVal: 0.0, transferVal: 0.0 }, // resting day
-    { date: '25 Sep', operationsVal: 0.9, transferVal: 0.65, highlightPercent: 87 },
-    { date: '26 Sep', operationsVal: 0.0, transferVal: 0.0 },
-    { date: '27 Sep', operationsVal: 0.75, transferVal: 0.45 },
-    { date: '28 Sep', operationsVal: 0.6, transferVal: 0.3 },
-  ];
+  // Build real date points based on actual published records (last 8 days in Asia/Karachi)
+  const chartPoints: ChartPoint[] = React.useMemo(() => {
+    const pts: ChartPoint[] = [];
+    const now = new Date();
+
+    // Group posts by date in Asia/Karachi
+    const postsByDate: Record<string, number> = {};
+    for (const post of posts) {
+      const dtStr = post.published_at || post.scheduled_at || post.created_at;
+      if (!dtStr) continue;
+      try {
+        const d = new Date(dtStr);
+        const dateKey = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Karachi',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(d);
+        postsByDate[dateKey] = (postsByDate[dateKey] || 0) + 1;
+      } catch {
+        // Ignore unparseable dates
+      }
+    }
+
+    for (let i = 7; i >= 0; i--) {
+      const dayDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      let dateKey = '';
+      let label = '';
+      try {
+        dateKey = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Karachi',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(dayDate);
+
+        label = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Karachi',
+          day: '2-digit',
+          month: 'short',
+        }).format(dayDate);
+      } catch {
+        label = `${dayDate.getDate()} ${dayDate.toLocaleString('default', { month: 'short' })}`;
+      }
+
+      const count = postsByDate[dateKey] || 0;
+      // Normalizing against daily target of 3 posts/day
+      const operationsVal = count > 0 ? Math.min(1.0, count / 3.0) : 0;
+      const transferVal = count > 0 ? Math.min(1.0, operationsVal * 0.6) : 0;
+
+      pts.push({
+        date: label,
+        operationsVal,
+        transferVal,
+        highlightPercent: count >= 3 ? 100 : count > 0 ? Math.round((count / 3) * 100) : undefined,
+      });
+    }
+
+    return pts;
+  }, [posts]);
 
   return (
     <div className="p-6 rounded-[32px] bg-white dark:bg-[#121620] border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-6">
@@ -38,24 +88,24 @@ export function CapsuleSliderChart({ posts = [] }: CapsuleSliderChartProps) {
             <span className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
               <BarChart3 className="w-4 h-4" />
             </span>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">Statistics</h3>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white">Publication Statistics</h3>
           </div>
 
           {/* Legend */}
           <div className="flex items-center gap-4 text-xs font-semibold">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-slate-900 dark:bg-white" />
-              <span className="text-slate-600 dark:text-slate-300">Operations</span>
+              <span className="text-slate-600 dark:text-slate-300">Published Reels</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#d4f832]" />
-              <span className="text-slate-600 dark:text-slate-300">Buffer Transfer</span>
+              <span className="text-slate-600 dark:text-slate-300">Target Output</span>
             </div>
           </div>
         </div>
 
         {/* Range Dropdown Pill */}
-        <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+        <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
           <span>{selectedRange}</span>
           <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
         </div>
@@ -71,7 +121,7 @@ export function CapsuleSliderChart({ posts = [] }: CapsuleSliderChartProps) {
           <div className="border-b border-dashed border-slate-400 w-full" />
         </div>
 
-        {samplePoints.map((pt, i) => {
+        {chartPoints.map((pt, i) => {
           const isResting = pt.operationsVal === 0 && pt.transferVal === 0;
           const barHeight = Math.max(10, Math.round(pt.operationsVal * 190));
           const limeHeight = Math.max(0, Math.round(pt.transferVal * 190));
@@ -109,7 +159,7 @@ export function CapsuleSliderChart({ posts = [] }: CapsuleSliderChartProps) {
                   </div>
                 )}
 
-                {/* Highlight Badge from reference (e.g. 87%) */}
+                {/* Highlight Badge */}
                 {pt.highlightPercent && (
                   <div className="absolute top-2 right-1/2 translate-x-1/2 px-1.5 py-0.5 rounded-full bg-black text-white text-[9px] font-mono font-bold shadow-md">
                     {pt.highlightPercent}%
