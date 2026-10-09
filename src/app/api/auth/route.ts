@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createSessionToken, verifySessionToken } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
     const { passcode } = await req.json();
-    const correctPasscode = process.env.DASHBOARD_PASSCODE || 'lifefuel2026';
+    const correctPasscode = process.env.DASHBOARD_PASSCODE;
 
-    if (passcode === correctPasscode) {
+    if (!correctPasscode) {
+      return NextResponse.json(
+        { error: 'Server misconfiguration: DASHBOARD_PASSCODE is not set in environment.' },
+        { status: 500 }
+      );
+    }
+
+    if (passcode && passcode === correctPasscode) {
+      const token = await createSessionToken(correctPasscode);
       const res = NextResponse.json({ success: true });
-      res.cookies.set('ig_cockpit_auth', 'authenticated', {
+      res.cookies.set('ig_cockpit_auth', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -24,7 +33,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const authCookie = req.cookies.get('ig_cockpit_auth');
-  const isAuthenticated = authCookie?.value === 'authenticated';
+  const correctPasscode = process.env.DASHBOARD_PASSCODE;
+  if (!correctPasscode) {
+    return NextResponse.json({ authenticated: false });
+  }
+
+  const authCookie = req.cookies.get('ig_cockpit_auth')?.value;
+  const isAuthenticated = await verifySessionToken(authCookie, correctPasscode);
   return NextResponse.json({ authenticated: isAuthenticated });
 }
