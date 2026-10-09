@@ -177,15 +177,20 @@ export default function DashboardPage() {
   // Immediate Publish Trigger
   const handleTriggerImmediatePublish = async () => {
     try {
-      const res = await fetch('/api/worker/trigger', {
+      const res = await fetch('/api/videos/publish-now', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workflow: 'publisher' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      addToast('success', 'Publisher Triggered', 'Dispatched Publisher workflow on GitHub Actions.');
+      addToast(
+        'success',
+        'Publisher Dispatched',
+        data.video_id
+          ? 'Next Reel queued for immediate publication and GitHub Actions runner launched.'
+          : 'Dispatched Publisher workflow on GitHub Actions.'
+      );
       setTimeout(() => fetchData(true), 4000);
     } catch (err: any) {
       addToast('error', 'Publish Failed', err.message);
