@@ -70,7 +70,7 @@ export function SettingsView({ settings, onRefresh, onSaveSettings }: SettingsVi
 
   const handleFrequencyChange = (val: string) => {
     const f = parseInt(val, 10);
-    const updated = { ...formData, posting_frequency: val };
+    const updated: Record<string, string> = { ...formData, posting_frequency: val };
     if (!isNaN(f) && f > 0 && f <= 25) {
       updated.posting_times = getSlotsForFrequency(f);
     }
