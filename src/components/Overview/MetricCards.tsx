@@ -129,7 +129,7 @@ export function MetricCards({
               <span className="text-4xl font-extrabold tracking-tight text-slate-950 font-sans">
                 {bufferCount}
               </span>
-              <span className="text-sm font-bold text-slate-950/60 font-sans ml-1">/{bufferTarget} MB</span>
+              <span className="text-sm font-bold text-slate-950/60 font-sans ml-1">/{bufferTarget} Videos</span>
             </div>
 
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/70 border border-black/10 text-xs font-extrabold text-slate-950 shadow-sm">
