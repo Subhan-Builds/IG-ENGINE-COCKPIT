@@ -18,12 +18,26 @@ export function VideoModal({ video, isOpen, onClose, onUpdated }: VideoModalProp
   const { addToast } = useApp();
   const [caption, setCaption] = useState<string>(video?.caption || '');
   const [scheduledAt, setScheduledAt] = useState<string | null>(video?.scheduled_at || null);
+  const [accountId, setAccountId] = useState<string>(video?.account_id || 'acc_lifefuel_01');
+  const [accountsList, setAccountsList] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      fetch('/api/accounts')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.accounts) setAccountsList(d.accounts);
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (video) {
       setCaption(video.caption || '');
       setScheduledAt(video.scheduled_at || null);
+      setAccountId(video.account_id || 'acc_lifefuel_01');
     }
   }, [video]);
 
@@ -42,6 +56,7 @@ export function VideoModal({ video, isOpen, onClose, onUpdated }: VideoModalProp
           id: video.id,
           caption,
           scheduled_at: scheduledAt,
+          account_id: accountId,
         }),
       });
 
@@ -220,6 +235,32 @@ export function VideoModal({ video, isOpen, onClose, onUpdated }: VideoModalProp
                 initialUtcIso={scheduledAt}
                 onChange={(utcIso) => setScheduledAt(utcIso)}
               />
+
+              {/* Target Instagram Account Selector */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
+                  <label className="font-semibold">Assigned Instagram Account</label>
+                  <span className="text-[11px] font-mono text-slate-400">Multi-Account Isolation</span>
+                </div>
+                <select
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c121e] text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                >
+                  {accountsList.length > 0 ? (
+                    accountsList.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name || acc.id} ({acc.id}){acc.is_default ? ' [Default]' : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="acc_lifefuel_01">Life Fuel | Daily Motivation (Default)</option>
+                      <option value="acc_instagram_02">Second Instagram Account</option>
+                    </>
+                  )}
+                </select>
+              </div>
             </div>
 
             {/* Quick Actions Footer */}
