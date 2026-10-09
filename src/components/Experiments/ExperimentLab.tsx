@@ -138,7 +138,11 @@ export function ExperimentLab({
       totalViews += p.liveMetrics?.views || 0;
     }
     const avgViews = count > 0 ? Math.round(totalViews / count) : 0;
-    const status = count >= 30 ? 'Statistical Power Achieved' : `Accumulating (${count}/30)`;
+    const status = count >= 30
+      ? 'Sample Target Met (30+ posts)'
+      : count > 0
+      ? `Sampling in progress (${count}/30 posts)`
+      : 'Awaiting data';
 
     return { count, avgViews, status };
   };
