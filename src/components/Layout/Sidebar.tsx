@@ -14,6 +14,7 @@ import {
   Settings,
   Flame,
   Sparkles,
+  Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +52,7 @@ export function Sidebar({
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'health', label: 'Health', icon: Activity, badge: attentionCount > 0 ? '!' : undefined },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'about', label: 'About & Roadmap', icon: Info },
   ];
 
   return (
@@ -100,14 +102,19 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Bottom User Avatar */}
+      {/* Bottom Info & Creator Trigger */}
       <div className="flex flex-col items-center">
-        <div
-          className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 flex items-center justify-center text-white text-xs font-bold shadow-md cursor-pointer border border-white/20"
-          title={`Active: ${selectedAccountId === 'all' ? 'All Accounts' : selectedAccountId}`}
+        <button
+          onClick={() => setActiveTab('about')}
+          className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 flex items-center justify-center text-white text-[11px] font-mono font-bold shadow-md cursor-pointer border border-white/20 transition-all group"
+          title="About IG Engine Ecosystem & Roadmap (v2.4.0) by Subhan Malik"
         >
-          LF
-        </div>
+          {selectedAccountId === 'acc_ig_mvcby6fw'
+            ? 'TC'
+            : selectedAccountId === 'acc_lifefuel_01'
+            ? 'LF'
+            : 'SM'}
+        </button>
       </div>
     </aside>
   );
