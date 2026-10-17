@@ -269,8 +269,8 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
   };
 
   const handleDisconnect = async (account: AccountItem) => {
-    if (account.is_default) {
-      addToast('warning', 'Default Account', 'Account #1 is primary and cannot be disconnected.');
+    if (accounts.length <= 1) {
+      addToast('warning', 'Minimum 1 Account Required', 'Cannot disconnect the only active account in the engine.');
       return;
     }
     if (!confirm(`Are you sure you want to disconnect @${account.handle}?`)) return;
@@ -381,18 +381,8 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
           return (
             <div
               key={acc.id}
-              className={`p-6 rounded-[28px] border transition-all ${
-                acc.is_default
-                  ? 'bg-white dark:bg-[#111726] border-blue-500/40 shadow-sm relative overflow-hidden'
-                  : 'bg-white dark:bg-[#111726] border-slate-200/80 dark:border-slate-800/80 shadow-sm'
-              }`}
+              className="p-6 rounded-[28px] border bg-white dark:bg-[#111726] border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all"
             >
-              {acc.is_default && (
-                <div className="absolute top-0 right-0 px-3 py-1 bg-blue-600 text-white text-[10px] font-mono font-bold rounded-bl-xl uppercase tracking-wider">
-                  Account #1 • Primary
-                </div>
-              )}
-
               {/* Account Header */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -439,7 +429,7 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                     <Settings2 className="w-4 h-4" />
                   </button>
 
-                  {!acc.is_default && (
+                  {accounts.length > 1 && (
                     <button
                       onClick={() => handleDisconnect(acc)}
                       className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-rose-500 transition-colors"
