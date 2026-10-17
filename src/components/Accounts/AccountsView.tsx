@@ -78,6 +78,7 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
   const [folderValidationResult, setFolderValidationResult] = useState<any | null>(null);
   const [isSavingFolder, setIsSavingFolder] = useState(false);
   const [isVerifyingAccount, setIsVerifyingAccount] = useState<string | null>(null);
+  const [autoVerifyOnSwap, setAutoVerifyOnSwap] = useState(true);
 
   const handlePostVerificationReel = async (account: AccountItem) => {
     try {
@@ -162,6 +163,11 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
       addToast('success', 'Source Folder Swapped!', `Successfully mapped @${selectedAccount.handle} to '${folderName}'`);
       setIsFolderModalOpen(false);
       onRefresh();
+      if (autoVerifyOnSwap) {
+        setTimeout(() => {
+          handlePostVerificationReel(selectedAccount);
+        }, 800);
+      }
     } catch (err: any) {
       addToast('error', 'Update Failed', err.message);
     } finally {
@@ -870,6 +876,26 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                   </button>
                 </div>
               )}
+
+              {/* Auto Verify Checkbox */}
+              <div className="pt-2">
+                <label className="flex items-start gap-2.5 p-3 rounded-2xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/80 dark:border-purple-800/50 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={autoVerifyOnSwap}
+                    onChange={(e) => setAutoVerifyOnSwap(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded text-purple-600 focus:ring-purple-500 accent-purple-600 shrink-0 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-semibold text-purple-900 dark:text-purple-300">
+                      Verify connection: Post 1 sample Reel now
+                    </span>
+                    <p className="text-[11px] text-purple-700/80 dark:text-purple-400/80 mt-0.5">
+                      Immediately publishes 1 video from the folder live to Instagram to confirm attachment and publishing.
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
 
             {/* Modal Actions */}
