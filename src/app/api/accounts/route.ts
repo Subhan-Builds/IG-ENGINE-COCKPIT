@@ -19,6 +19,9 @@ export interface EngineAccount {
   posting_times: string[];
   posting_enabled: boolean;
   caption_template?: string;
+  drive_folder_id?: string;
+  drive_folder_name?: string;
+  previous_drive_folder_id?: string;
   created_at: string;
   last_synced_at?: string;
   quota?: {
@@ -42,6 +45,8 @@ const DEFAULT_ACCOUNTS: EngineAccount[] = [
     posting_frequency: 4,
     posting_times: ['09:00', '13:00', '17:00', '21:00'],
     posting_enabled: true,
+    drive_folder_id: process.env.DRIVE_FOLDER_ID || '1VC5hQbbCsNk9LN1CbHshvDZ6CwxxmmOi',
+    drive_folder_name: 'Reels Format Video 1 - 100 Videos',
     caption_template:
       'Follow for daily motivation! #motivation #mindset #success #dailymotivation #inspirationalquotes #lifefuel #reels #reelsinsta #reelsinstagram #fyp #explorepage',
     created_at: '2026-09-25T12:00:00Z',
@@ -212,6 +217,36 @@ export async function POST(req: NextRequest) {
             .from('settings')
             .upsert({ key: 'caption_template', value: caption_template });
         }
+      }
+
+      return NextResponse.json({ success: true, accounts: updated });
+    }
+
+    if (action === 'update_folder') {
+      const { accountId, drive_folder_id, drive_folder_name } = body;
+      const cleanFolderId = drive_folder_id ? drive_folder_id.trim() : '';
+
+      const updated = currentAccounts.map((acc) => {
+        if (acc.id === accountId) {
+          return {
+            ...acc,
+            previous_drive_folder_id: acc.drive_folder_id || acc.previous_drive_folder_id,
+            drive_folder_id: cleanFolderId,
+            drive_folder_name: drive_folder_name || acc.drive_folder_name,
+            last_synced_at: new Date().toISOString(),
+          };
+        }
+        return acc;
+      });
+
+      await saveStoredAccounts(updated);
+
+      // If updating default account, sync global settings
+      const target = updated.find((a) => a.id === accountId);
+      if (target?.is_default && cleanFolderId) {
+        await supabaseAdmin
+          .from('settings')
+          .upsert({ key: 'drive_folder_id', value: cleanFolderId, updated_at: new Date().toISOString() });
       }
 
       return NextResponse.json({ success: true, accounts: updated });
