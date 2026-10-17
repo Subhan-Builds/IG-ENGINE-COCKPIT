@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
+      valid: true,
       success: true,
       folderId: result.folderId,
       folderName: result.folderName,
