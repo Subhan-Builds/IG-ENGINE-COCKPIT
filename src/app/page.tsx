@@ -7,9 +7,8 @@ import { Header } from '@/components/Layout/Header';
 import { MobileNav } from '@/components/Layout/MobileNav';
 
 // View Components
+import { NextUpHero } from '@/components/Overview/NextUpHero';
 import { MetricCards } from '@/components/Overview/MetricCards';
-import { CapsuleSliderChart } from '@/components/Overview/CapsuleSliderChart';
-import { QuickResourceSidebar } from '@/components/Overview/QuickResourceSidebar';
 import { GitHubWorkerUsage } from '@/components/Overview/GitHubWorkerUsage';
 import { ActivityStream } from '@/components/Overview/ActivityStream';
 import { AttentionBanner } from '@/components/Overview/AttentionBanner';
@@ -20,13 +19,12 @@ import { QueueTable } from '@/components/Queue/QueueTable';
 import { CalendarView } from '@/components/Calendar/CalendarView';
 import { PublishedGrid } from '@/components/Posts/PublishedGrid';
 import { AnalyticsOverview } from '@/components/Analytics/AnalyticsOverview';
-import { ExperimentLab } from '@/components/Experiments/ExperimentLab';
 import { HealthOverview } from '@/components/Health/HealthOverview';
 import { SettingsView } from '@/components/Settings/SettingsView';
 import { VideoModal } from '@/components/Queue/VideoModal';
 
-import { Loader2 } from 'lucide-react';
-import { formatDateTimePKT } from '@/lib/utils';
+import { Loader2, ExternalLink, Clock, Layers, Film } from 'lucide-react';
+import { formatDateTimePKT, formatNumber } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { activeTab, setActiveTab, selectedAccountId, addToast } = useApp();
@@ -38,25 +36,27 @@ export default function DashboardPage() {
   const [healthData, setHealthData] = useState<any>(null);
   const [workerData, setWorkerData] = useState<any>(null);
   const [publishedPosts, setPublishedPosts] = useState<any[]>([]);
-  const [experimentsData, setExperimentsData] = useState<any>(null);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
-  // Fetch all live data
+  // Fetch all live data (account-aware)
   const fetchData = useCallback(
     async (showRefreshing = false) => {
       if (showRefreshing) setIsRefreshing(true);
       try {
-        const [accRes, vidsRes, setRes, healthRes, workerRes, mediaRes, expRes] = await Promise.all([
+        const accountQuery =
+          selectedAccountId && selectedAccountId !== 'all' ? `?account_id=${selectedAccountId}` : '';
+
+        const [accRes, vidsRes, setRes, healthRes, workerRes, mediaRes] = await Promise.all([
           fetch('/api/accounts', { cache: 'no-store' }),
           fetch('/api/videos', { cache: 'no-store' }),
           fetch('/api/settings', { cache: 'no-store' }),
           fetch('/api/health', { cache: 'no-store' }),
           fetch('/api/worker/runs', { cache: 'no-store' }),
-          fetch('/api/instagram/media', { cache: 'no-store' }),
-          fetch('/api/experiments', { cache: 'no-store' }),
+          fetch(`/api/instagram/media${accountQuery}`, { cache: 'no-store' }),
         ]);
 
         if (accRes.ok) {
@@ -83,10 +83,6 @@ export default function DashboardPage() {
           const m = await mediaRes.json();
           setPublishedPosts(m.posts || []);
         }
-        if (expRes.ok) {
-          const e = await expRes.json();
-          setExperimentsData(e);
-        }
       } catch (err: any) {
         console.error('Failed to load dashboard data:', err);
         addToast('error', 'Sync Warning', 'Could not refresh some live metrics from backend.');
@@ -95,7 +91,7 @@ export default function DashboardPage() {
         setIsRefreshing(false);
       }
     },
-    [addToast]
+    [selectedAccountId, addToast]
   );
 
   useEffect(() => {
@@ -132,13 +128,20 @@ export default function DashboardPage() {
     return vidAcc === selectedAccountId;
   });
 
+  // Active account metadata
+  const currentAccount =
+    accounts.find((a) => a.id === selectedAccountId) ||
+    accounts.find((a) => a.is_default) ||
+    accounts[0] ||
+    null;
+
   // Derived Values
   const scheduledVideos = filteredVideos.filter((v) => v.status === 'scheduled');
   const publishedVideos = filteredVideos.filter((v) => v.status === 'published');
   const bufferVideos = filteredVideos.filter((v) => v.status === 'hf_ready' || v.status === 'scheduled');
   const failedVideos = filteredVideos.filter((v) => v.status === 'publish_failed' || v.status === 'import_failed');
 
-  // Next up video
+  // Next up video strictly for this account
   const nextUpVideo =
     scheduledVideos.length > 0
       ? [...scheduledVideos].sort(
@@ -147,9 +150,9 @@ export default function DashboardPage() {
       : null;
 
   const postingEnabled = settings.posting_enabled !== 'false';
-  const postingTimes = settings.posting_times || '09:00, 13:00, 17:00, 21:00';
+  const postingTimes = currentAccount?.posting_times?.join(', ') || settings.posting_times || '09:00, 13:00, 17:00, 21:00';
   const bufferTarget = parseInt(settings.hf_buffer_target || '15', 10);
-  const quotaUsage = healthData?.subsystems?.instagram?.quota?.quota_usage ?? 3;
+  const quotaUsage = currentAccount?.quota?.quota_usage ?? (healthData?.subsystems?.instagram?.quota?.quota_usage ?? 3);
   const overallHealth = healthData?.overallHealth || 'optimal';
 
   // Toggle Posting Handler
@@ -174,26 +177,29 @@ export default function DashboardPage() {
     }
   };
 
-  // Immediate Publish Trigger
+  // Immediate Publish Trigger (Strictly targets the currently selected account!)
   const handleTriggerImmediatePublish = async () => {
     try {
+      setIsPublishing(true);
+      const targetId = selectedAccountId === 'all' ? currentAccount?.id : selectedAccountId;
       const res = await fetch('/api/videos/publish-now', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: targetId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
       addToast(
         'success',
-        'Publisher Dispatched',
-        data.video_id
-          ? 'Next Reel queued for immediate publication and GitHub Actions runner launched.'
-          : 'Dispatched Publisher workflow on GitHub Actions.'
+        data.published_direct ? 'Reel Live on Instagram!' : 'Publisher Dispatched',
+        data.message || 'Reel published successfully.'
       );
-      setTimeout(() => fetchData(true), 4000);
+      setTimeout(() => fetchData(true), 2500);
     } catch (err: any) {
       addToast('error', 'Publish Failed', err.message);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -257,7 +263,6 @@ export default function DashboardPage() {
   }
 
   return (
-    // Outer sage/neutral background framing the floating canvas (matching Ref-for-dashboard-ui-ux.png)
     <div className="min-h-screen bg-[#e2e8e4] dark:bg-[#070b10] text-slate-900 dark:text-slate-100 p-2 sm:p-4 lg:p-6 antialiased selection:bg-[#e3fb45] selection:text-black">
       {/* Floating Canvas Container */}
       <div className="flex bg-[#f9fafb] dark:bg-[#0c1017] rounded-[36px] shadow-2xl border border-slate-300/80 dark:border-slate-800 min-h-[calc(100vh-32px)] sm:min-h-[calc(100vh-48px)] overflow-hidden">
@@ -267,7 +272,6 @@ export default function DashboardPage() {
           attentionCount={healthData?.attentionItems?.length || 0}
           publishedCount={filteredPosts.length}
           accountsCount={accounts.length}
-          hasActiveExperiment={experimentsData?.isExperimentMode}
         />
 
         {/* Main Content Area */}
@@ -275,23 +279,28 @@ export default function DashboardPage() {
           <Header
             onRefresh={() => fetchData(true)}
             isRefreshing={isRefreshing}
-            postingEnabled={postingEnabled}
-            onTogglePosting={handleTogglePosting}
-            nextPostTime={nextUpVideo?.scheduled_at ? formatDateTimePKT(nextUpVideo.scheduled_at) : null}
-            overallHealth={overallHealth}
             accounts={accounts}
             onOpenAddAccount={() => setActiveTab('accounts')}
+            onPublishNow={handleTriggerImmediatePublish}
+            isPublishing={isPublishing}
           />
 
-          <main className="flex-1 px-6 pb-8 pt-2 max-w-7xl w-full mx-auto space-y-6">
-            {/* TAB 1: COMMAND CENTER (OVERVIEW - Exactly matching UI reference) */}
+          <main className="flex-1 px-6 pb-8 pt-4 max-w-7xl w-full mx-auto space-y-6">
+            {/* TAB 1: EXECUTIVE OVERVIEW */}
             {activeTab === 'overview' && (
               <div className="space-y-6 animate-fadeIn">
                 {healthData?.attentionItems?.length > 0 && (
                   <AttentionBanner items={healthData.attentionItems} onAction={handleAttentionAction} />
                 )}
 
-                {/* Top Highlight Cards */}
+                {/* Next Up Hero Card for Active Account */}
+                <NextUpHero
+                  video={nextUpVideo}
+                  onTriggerPublish={handleTriggerImmediatePublish}
+                  onEdit={(v) => setSelectedVideo(v)}
+                />
+
+                {/* Key Real Metrics Row */}
                 <MetricCards
                   bufferCount={bufferVideos.length}
                   bufferTarget={bufferTarget}
@@ -305,13 +314,106 @@ export default function DashboardPage() {
                   onPublishNow={handleTriggerImmediatePublish}
                 />
 
-                {/* Middle Row: Capsule Slider Chart + Quick Resource Cards (matching reference) */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                    <CapsuleSliderChart posts={filteredPosts} />
+                {/* Middle Row: Upcoming Queue Preview + Live Posts Preview */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Next Scheduled Posts Table */}
+                  <div className="p-6 rounded-[28px] bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-blue-500" />
+                          <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                            Next Scheduled Queue ({scheduledVideos.length})
+                          </h3>
+                        </div>
+                        <button
+                          onClick={() => setActiveTab('queue')}
+                          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          View Full Queue →
+                        </button>
+                      </div>
+
+                      <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {scheduledVideos.slice(0, 5).map((vid) => (
+                          <div key={vid.id} className="py-2.5 flex items-center justify-between text-xs">
+                            <div className="truncate pr-3">
+                              <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                {vid.drive_filename}
+                              </p>
+                              <span className="text-[11px] font-mono text-slate-400">
+                                {formatDateTimePKT(vid.scheduled_at)}
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-mono text-[10px] font-bold shrink-0">
+                              Scheduled
+                            </span>
+                          </div>
+                        ))}
+                        {scheduledVideos.length === 0 && (
+                          <div className="py-8 text-center text-xs text-slate-400">
+                            No videos currently in scheduled queue for this account.
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <QuickResourceSidebar />
+
+                  {/* Latest Published Reels */}
+                  <div className="p-6 rounded-[28px] bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <Film className="w-4 h-4 text-emerald-500" />
+                          <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                            Latest Published Reels ({filteredPosts.length})
+                          </h3>
+                        </div>
+                        <button
+                          onClick={() => setActiveTab('posts')}
+                          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          View All Posts →
+                        </button>
+                      </div>
+
+                      <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {filteredPosts.slice(0, 5).map((p) => {
+                          const permalink =
+                            p.liveMetrics?.permalink || `https://www.instagram.com/reel/${p.instagram_media_id}/`;
+                          return (
+                            <div key={p.id} className="py-2.5 flex items-center justify-between text-xs">
+                              <div className="truncate pr-3">
+                                <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                  {p.drive_filename || 'Instagram Reel'}
+                                </p>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
+                                  <span>{formatDateTimePKT(p.published_at || p.created_at)}</span>
+                                  <span>•</span>
+                                  <span>{p.liveMetrics?.views ?? 0} views</span>
+                                  <span>•</span>
+                                  <span>{p.liveMetrics?.like_count ?? 0} likes</span>
+                                </div>
+                              </div>
+                              <a
+                                href={permalink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 shrink-0"
+                                title="Open on Instagram"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+                          );
+                        })}
+                        {filteredPosts.length === 0 && (
+                          <div className="py-8 text-center text-xs text-slate-400">
+                            No published reels yet for this account.
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -323,14 +425,14 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 2: ACCOUNTS MANAGEMENT (Stage E & F) */}
+            {/* TAB 2: ACCOUNTS MANAGEMENT */}
             {activeTab === 'accounts' && (
               <div className="animate-fadeIn">
                 <AccountsView accounts={accounts} onRefresh={() => fetchData(true)} />
               </div>
             )}
 
-            {/* TAB 3: CONTENT MANAGEMENT (Section 14) */}
+            {/* TAB 3: CONTENT MANAGEMENT */}
             {activeTab === 'content' && (
               <div className="animate-fadeIn">
                 <ContentView
@@ -341,7 +443,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 4: QUEUE & VIDEO MANAGEMENT */}
+            {/* TAB 4: QUEUE MANAGEMENT */}
             {activeTab === 'queue' && (
               <div className="animate-fadeIn">
                 <QueueTable videos={filteredVideos} onRefresh={() => fetchData(true)} />
@@ -367,26 +469,14 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 7: ANALYTICS */}
+            {/* TAB 7: LIVE ANALYTICS */}
             {activeTab === 'analytics' && (
               <div className="animate-fadeIn">
                 <AnalyticsOverview posts={filteredPosts} />
               </div>
             )}
 
-            {/* TAB 8: EXPERIMENTS */}
-            {activeTab === 'experiments' && (
-              <div className="animate-fadeIn">
-                <ExperimentLab
-                  experiments={experimentsData?.experiments || []}
-                  isExperimentMode={experimentsData?.isExperimentMode || false}
-                  onRefresh={() => fetchData(true)}
-                  publishedPosts={filteredPosts}
-                />
-              </div>
-            )}
-
-            {/* TAB 9: HEALTH MONITOR */}
+            {/* TAB 8: HEALTH MONITOR */}
             {activeTab === 'health' && (
               <div className="animate-fadeIn">
                 <HealthOverview
@@ -397,7 +487,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 10: SETTINGS */}
+            {/* TAB 9: SETTINGS */}
             {activeTab === 'settings' && (
               <div className="animate-fadeIn">
                 <SettingsView
@@ -418,9 +508,12 @@ export default function DashboardPage() {
       {selectedVideo && (
         <VideoModal
           video={selectedVideo}
-          isOpen={!!selectedVideo}
+          isOpen={Boolean(selectedVideo)}
           onClose={() => setSelectedVideo(null)}
-          onUpdated={() => fetchData(true)}
+          onSave={() => {
+            setSelectedVideo(null);
+            fetchData(true);
+          }}
         />
       )}
     </div>
