@@ -163,3 +163,66 @@ export async function getRecentMedia(userId?: string, token?: string): Promise<I
     return [];
   }
 }
+
+export async function publishReelDirectly(
+  userId: string,
+  token: string,
+  videoUrl: string,
+  caption: string
+): Promise<{ mediaId: string }> {
+  // 1. Create reel container
+  const containerRes = await fetch(`${BASE_URL}/${userId}/media`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      media_type: 'REELS',
+      video_url: videoUrl,
+      caption: caption,
+      access_token: token,
+    }),
+  });
+  if (!containerRes.ok) {
+    const errText = await containerRes.text();
+    throw new Error(`Failed to create reel container (${containerRes.status}): ${errText}`);
+  }
+  const { id: containerId } = await containerRes.json();
+
+  // 2. Poll container status (up to 45 seconds)
+  const startTime = Date.now();
+  let finished = false;
+  while (Date.now() - startTime < 45000) {
+    await new Promise((r) => setTimeout(r, 4000));
+    const statusRes = await fetch(`${BASE_URL}/${containerId}?fields=status_code&access_token=${token}`);
+    if (statusRes.ok) {
+      const { status_code } = await statusRes.json();
+      if (status_code === 'FINISHED') {
+        finished = true;
+        break;
+      }
+      if (status_code === 'ERROR') {
+        throw new Error('Instagram processing failed: Container status is ERROR');
+      }
+    }
+  }
+
+  if (!finished) {
+    throw new Error('Instagram container processing timed out waiting for FINISHED status');
+  }
+
+  // 3. Publish container
+  const pubRes = await fetch(`${BASE_URL}/${userId}/media_publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      creation_id: containerId,
+      access_token: token,
+    }),
+  });
+  if (!pubRes.ok) {
+    const errText = await pubRes.text();
+    throw new Error(`Failed to publish reel container (${pubRes.status}): ${errText}`);
+  }
+  const { id: mediaId } = await pubRes.json();
+  return { mediaId };
+}
+
