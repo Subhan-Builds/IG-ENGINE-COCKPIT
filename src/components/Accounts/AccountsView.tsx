@@ -779,12 +779,12 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
               {folderValidationResult && (
                 <div
                   className={`p-3.5 rounded-2xl border text-xs ${
-                    folderValidationResult.valid
+                    folderValidationResult.valid || folderValidationResult.success
                       ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-300'
                       : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/50 text-rose-800 dark:text-rose-300'
                   }`}
                 >
-                  {folderValidationResult.valid ? (
+                  {folderValidationResult.valid || folderValidationResult.success ? (
                     <div className="space-y-1">
                       <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
                         <CheckCircle2 className="w-4 h-4" />
@@ -842,7 +842,7 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
               <button
                 type="button"
                 onClick={handleSaveDriveFolder}
-                disabled={isSavingFolder || !folderValidationResult?.valid}
+                disabled={isSavingFolder || !(folderValidationResult?.valid || folderValidationResult?.success)}
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md transition-all"
               >
                 {isSavingFolder && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
