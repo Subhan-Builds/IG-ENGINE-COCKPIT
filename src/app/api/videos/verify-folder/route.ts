@@ -4,6 +4,8 @@ import { getAccountById } from '@/lib/accounts';
 import { publishReelDirectly } from '@/lib/instagram';
 import { listDriveVideos, downloadDriveFileStream } from '@/lib/drive';
 
+import { triggerWorkflow } from '@/lib/github';
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
@@ -38,9 +40,16 @@ export async function POST(req: NextRequest) {
     let targetVideo = readyVideos?.[0] || null;
 
     if (!targetVideo) {
+      // Automatically dispatch the GitHub Actions Importer to pull videos from Drive to Hugging Face
+      try {
+        await triggerWorkflow('importer.yml');
+      } catch (triggerErr) {
+        console.warn('Failed to trigger importer automatically:', triggerErr);
+      }
+
       return NextResponse.json(
         {
-          error: `No ingested videos found for @${account.handle}. Please trigger the importer first to ingest videos from its folder.`,
+          error: `No ready videos in buffer for @${account.handle}. We just dispatched the Importer to ingest the first batch from folder '${account.drive_folder_name || account.drive_folder_id}' into Hugging Face. Please try Verify again in 1-2 minutes.`,
         },
         { status: 400 }
       );
