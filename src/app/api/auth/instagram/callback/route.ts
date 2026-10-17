@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
   const error = url.searchParams.get('error');
   const errorReason = url.searchParams.get('error_reason');
   const errorDescription = url.searchParams.get('error_description');
@@ -18,13 +19,24 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // 1. Verify CSRF State
+  const cookieState = req.cookies.get('ig_oauth_state')?.value;
+  if (!state || !cookieState || state !== cookieState) {
+    console.error('CSRF state mismatch in Instagram OAuth callback');
+    const response = NextResponse.redirect(
+      new URL(`/?oauth_error=${encodeURIComponent('Security check failed (CSRF state mismatch). Please try again.')}&tab=accounts`, url.origin)
+    );
+    response.cookies.delete('ig_oauth_state');
+    return response;
+  }
+
   const cleanCode = code.replace(/#_$/, '');
   const IG_APP_ID = process.env.IG_APP_ID || '1759208211969030';
   const IG_APP_SECRET = process.env.IG_APP_SECRET || '665a7ba009ec41e8ab2a4f4d2ef98174';
   const redirectUri = `${url.origin}/api/auth/instagram/callback`;
 
   try {
-    // 1. Exchange authorization code for short-lived access token
+    // 2. Exchange authorization code for short-lived access token
     const tokenForm = new URLSearchParams();
     tokenForm.append('client_id', IG_APP_ID);
     tokenForm.append('client_secret', IG_APP_SECRET);
@@ -41,16 +53,18 @@ export async function GET(req: NextRequest) {
     if (!tokenRes.ok) {
       const errBody = await tokenRes.text();
       console.error('Failed to exchange code for token:', errBody);
-      return NextResponse.redirect(
+      const response = NextResponse.redirect(
         new URL(`/?oauth_error=${encodeURIComponent('Token exchange failed: ' + errBody)}&tab=accounts`, url.origin)
       );
+      response.cookies.delete('ig_oauth_state');
+      return response;
     }
 
     const tokenData = await tokenRes.json();
     let accessToken = tokenData.access_token;
     const userId = tokenData.user_id;
 
-    // 2. Exchange short-lived token for long-lived (60-day) token
+    // 3. Exchange short-lived token for long-lived (60-day) token
     try {
       const longLivedRes = await fetch(
         `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${IG_APP_SECRET}&access_token=${accessToken}`
@@ -65,13 +79,13 @@ export async function GET(req: NextRequest) {
       console.warn('Long-lived token exchange warning (continuing with short-lived):', e);
     }
 
-    // 3. Query user profile from Meta Graph API
+    // 4. Query user profile from Meta Graph API
     const userRes = await fetch(
       `https://graph.instagram.com/v21.0/me?fields=id,username,name,account_type&access_token=${accessToken}`
     );
     const userData = userRes.ok ? await userRes.json() : { id: userId, username: `user_${userId}` };
 
-    // 4. Update Supabase accounts_store
+    // 5. Update Supabase accounts_store
     const { data: storeRow } = await supabaseAdmin
       .from('settings')
       .select('value')
@@ -105,6 +119,8 @@ export async function GET(req: NextRequest) {
       caption_template:
         accounts[0]?.caption_template ||
         'Follow for daily motivation! #motivation #success #reels',
+      drive_folder_id: accounts[0]?.drive_folder_id || process.env.DRIVE_FOLDER_ID || '1VC5hQbbCsNk9LN1CbHshvDZ6CwxxmmOi',
+      drive_folder_name: accounts[0]?.drive_folder_name || 'Reels Format Video 1 - 100 Videos',
       created_at: new Date().toISOString(),
       last_synced_at: new Date().toISOString(),
     };
@@ -122,13 +138,17 @@ export async function GET(req: NextRequest) {
       updated_at: new Date().toISOString(),
     });
 
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       new URL(`/?connected=success&account=${encodeURIComponent(userData.username)}&tab=accounts`, url.origin)
     );
+    response.cookies.delete('ig_oauth_state');
+    return response;
   } catch (err: any) {
     console.error('OAuth callback exception:', err);
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       new URL(`/?oauth_error=${encodeURIComponent(err.message)}&tab=accounts`, url.origin)
     );
+    response.cookies.delete('ig_oauth_state');
+    return response;
   }
 }
