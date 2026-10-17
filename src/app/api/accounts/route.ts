@@ -271,9 +271,9 @@ export async function POST(req: NextRequest) {
 
     if (action === 'disconnect') {
       const { accountId } = body;
-      if (currentAccounts.find((a) => a.id === accountId)?.is_default) {
+      if (currentAccounts.length <= 1) {
         return NextResponse.json(
-          { error: 'Cannot disconnect the primary default account (Account #1).' },
+          { error: 'Cannot disconnect the only active account in the engine.' },
           { status: 400 }
         );
       }
