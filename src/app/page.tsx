@@ -492,8 +492,23 @@ export default function DashboardPage() {
               <div className="animate-fadeIn">
                 <SettingsView
                   settings={settings}
+                  accounts={accounts}
                   onRefresh={() => fetchData(true)}
                   onSaveSettings={handleSaveSettings}
+                  initialTab="accounts"
+                />
+              </div>
+            )}
+
+            {/* TAB 10: ABOUT & SYSTEM ROADMAP */}
+            {activeTab === 'about' && (
+              <div className="animate-fadeIn">
+                <SettingsView
+                  settings={settings}
+                  accounts={accounts}
+                  onRefresh={() => fetchData(true)}
+                  onSaveSettings={handleSaveSettings}
+                  initialTab="about"
                 />
               </div>
             )}
