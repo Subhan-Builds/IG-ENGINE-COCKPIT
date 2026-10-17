@@ -6,6 +6,87 @@ import { publishReelDirectly } from '@/lib/instagram';
 
 export const dynamic = 'force-dynamic';
 
+async function refillVacatedSlot(accountId: string, vacatedSlot: string | null) {
+  if (!vacatedSlot) return null;
+  const nowIso = new Date().toISOString();
+
+  try {
+    // 1. Look for any buffered video ready in 'hf_ready' for this account
+    const { data: readyCandidates } = await supabaseAdmin
+      .from('videos')
+      .select('*')
+      .eq('account_id', accountId)
+      .eq('status', 'hf_ready')
+      .is('instagram_media_id', null)
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    if (readyCandidates && readyCandidates.length > 0) {
+      const candidate = readyCandidates[0];
+      await supabaseAdmin
+        .from('videos')
+        .update({
+          status: 'scheduled',
+          scheduled_at: vacatedSlot,
+          updated_at: nowIso,
+        })
+        .eq('id', candidate.id);
+
+      return {
+        refilled: true,
+        method: 'buffer_fill',
+        filename: candidate.drive_filename,
+        slot: vacatedSlot,
+      };
+    }
+
+    // 2. If no hf_ready, pull forward the earliest subsequent scheduled video so the calendar has no gap
+    const { data: futureScheduled } = await supabaseAdmin
+      .from('videos')
+      .select('*')
+      .eq('account_id', accountId)
+      .eq('status', 'scheduled')
+      .gt('scheduled_at', vacatedSlot)
+      .is('instagram_media_id', null)
+      .order('scheduled_at', { ascending: true });
+
+    if (futureScheduled && futureScheduled.length > 0) {
+      const nextCandidate = futureScheduled[0];
+      await supabaseAdmin
+        .from('videos')
+        .update({
+          scheduled_at: vacatedSlot,
+          updated_at: nowIso,
+        })
+        .eq('id', nextCandidate.id);
+
+      // Trigger importer to replenish queue tail from Drive
+      try {
+        await triggerWorkflow('importer.yml');
+      } catch (e) {
+        console.warn('Could not dispatch importer after refill:', e);
+      }
+
+      return {
+        refilled: true,
+        method: 'promoted_future',
+        filename: nextCandidate.drive_filename,
+        slot: vacatedSlot,
+      };
+    }
+
+    // Depleted queue: Trigger importer to fetch new files from Drive
+    try {
+      await triggerWorkflow('importer.yml');
+    } catch {}
+
+    return null;
+  } catch (err) {
+    console.error('[Slot-Refill] Error refilling vacated slot:', err);
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const nowIso = new Date().toISOString();
@@ -75,6 +156,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const vacatedSlot = videoToPublish.scheduled_at;
     const caption =
       videoToPublish.caption ||
       account.caption_template ||
@@ -110,6 +192,14 @@ export async function POST(req: NextRequest) {
           instagram_media_id: mediaId,
         });
 
+        // Refill the vacated slot with the next ready reel
+        const refillResult = await refillVacatedSlot(account.id, vacatedSlot);
+
+        let successMsg = `Reel successfully published directly to @${account.handle}! (Media ID: ${mediaId})`;
+        if (refillResult?.refilled) {
+          successMsg += ` Schedule slot was automatically refilled with '${refillResult.filename}'.`;
+        }
+
         return NextResponse.json({
           success: true,
           published_direct: true,
@@ -118,7 +208,8 @@ export async function POST(req: NextRequest) {
           account_id: account.id,
           account_handle: account.handle,
           filename: videoToPublish.drive_filename,
-          message: `Reel successfully published directly to @${account.handle}! Media ID: ${mediaId}`,
+          refill: refillResult,
+          message: successMsg,
         });
       } catch (directErr: any) {
         console.warn(`[Publish-Now] Direct publish failed (${directErr.message}). Falling back to GitHub Actions runner...`);
@@ -136,6 +227,7 @@ export async function POST(req: NextRequest) {
       .eq('id', videoToPublish.id);
 
     const ghResult = await triggerWorkflow('publisher.yml');
+    const refillResult = await refillVacatedSlot(account.id, vacatedSlot);
 
     return NextResponse.json({
       success: true,
@@ -145,7 +237,8 @@ export async function POST(req: NextRequest) {
       account_handle: account.handle,
       filename: videoToPublish.drive_filename,
       github: ghResult,
-      message: `Video '${videoToPublish.drive_filename}' marked due immediately for @${account.handle} and GitHub Actions publisher launched.`,
+      refill: refillResult,
+      message: `Video '${videoToPublish.drive_filename}' marked due for @${account.handle} and publisher launched.`,
     });
   } catch (err: any) {
     console.error('Publish-now route error:', err);
