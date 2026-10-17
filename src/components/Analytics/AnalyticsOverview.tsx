@@ -115,6 +115,24 @@ export function AnalyticsOverview({ posts }: AnalyticsOverviewProps) {
   const strokeColor = isDark ? '#334155' : '#e2e8f0';
   const textColor = isDark ? '#94a3b8' : '#64748b';
 
+  if (sampleSize === 0) {
+    return (
+      <div className="p-12 rounded-[32px] bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm text-center py-20 space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center mx-auto">
+          <BarChart3 className="w-7 h-7" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            Awaiting First Published Reel
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+            Live Meta Graph API metrics (plays, reach, likes, comments, saves) and slot efficiency analytics will automatically populate in real-time once the first Reel is published for this account.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Sample Size Transparency Banner */}
