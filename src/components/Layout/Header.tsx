@@ -85,7 +85,7 @@ export function Header({
             <option value="all">All Accounts ({accounts.length})</option>
             {accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
-                @{acc.handle} {acc.is_default ? '(Primary)' : ''}
+                @{acc.handle}
               </option>
             ))}
           </select>
