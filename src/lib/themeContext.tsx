@@ -13,7 +13,8 @@ export type TabType =
   | 'analytics'
   | 'experiments'
   | 'health'
-  | 'settings';
+  | 'settings'
+  | 'about';
 
 export interface ToastMessage {
   id: string;
