@@ -15,6 +15,9 @@ import {
   ShieldCheck,
   KeyRound,
   RefreshCw,
+  HardDrive,
+  FolderSync,
+  Undo2,
 } from 'lucide-react';
 import { useApp } from '@/lib/themeContext';
 
@@ -31,6 +34,9 @@ export interface AccountItem {
   posting_times: string[];
   posting_enabled: boolean;
   caption_template?: string;
+  drive_folder_id?: string;
+  drive_folder_name?: string;
+  previous_drive_folder_id?: string;
   has_token?: boolean;
   quota?: {
     quota_total: number;
@@ -63,6 +69,103 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
   const [editTimes, setEditTimes] = useState('');
   const [editCaption, setEditCaption] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  // Folder modal states
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [folderInput, setFolderInput] = useState('');
+  const [isValidatingFolder, setIsValidatingFolder] = useState(false);
+  const [folderValidationResult, setFolderValidationResult] = useState<any | null>(null);
+  const [isSavingFolder, setIsSavingFolder] = useState(false);
+
+  const handleOpenFolderModal = (account: AccountItem) => {
+    setSelectedAccount(account);
+    setFolderInput(account.drive_folder_id || '');
+    setFolderValidationResult(null);
+    setIsFolderModalOpen(true);
+  };
+
+  const handleValidateFolder = async () => {
+    if (!folderInput.trim()) {
+      addToast('warning', 'Missing Folder', 'Please enter a Google Drive folder URL or ID.');
+      return;
+    }
+    try {
+      setIsValidatingFolder(true);
+      setFolderValidationResult(null);
+      const res = await fetch('/api/drive/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: folderInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to validate folder');
+      }
+      setFolderValidationResult(data);
+      addToast('success', 'Folder Validated', `Found ${data.videoCount} MP4 videos in '${data.folderName}'`);
+    } catch (err: any) {
+      setFolderValidationResult({ valid: false, error: err.message });
+      addToast('error', 'Folder Inaccessible', err.message);
+    } finally {
+      setIsValidatingFolder(false);
+    }
+  };
+
+  const handleSaveDriveFolder = async () => {
+    if (!selectedAccount) return;
+    const folderId = folderValidationResult?.folderId || folderInput.trim();
+    const folderName = folderValidationResult?.folderName || 'Custom Source Folder';
+
+    try {
+      setIsSavingFolder(true);
+      const res = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_folder',
+          accountId: selectedAccount.id,
+          drive_folder_id: folderId,
+          drive_folder_name: folderName,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update folder mapping');
+      }
+      addToast('success', 'Source Folder Swapped!', `Successfully mapped @${selectedAccount.handle} to '${folderName}'`);
+      setIsFolderModalOpen(false);
+      onRefresh();
+    } catch (err: any) {
+      addToast('error', 'Update Failed', err.message);
+    } finally {
+      setIsSavingFolder(false);
+    }
+  };
+
+  const handleRollbackFolder = async (rollbackFolderId: string) => {
+    if (!selectedAccount || !rollbackFolderId) return;
+    try {
+      setIsSavingFolder(true);
+      const res = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_folder',
+          accountId: selectedAccount.id,
+          drive_folder_id: rollbackFolderId,
+          drive_folder_name: 'Previous Source Folder',
+        }),
+      });
+      if (!res.ok) throw new Error('Rollback failed');
+      addToast('success', 'Folder Rolled Back', `Restored previous folder for @${selectedAccount.handle}`);
+      setIsFolderModalOpen(false);
+      onRefresh();
+    } catch (err: any) {
+      addToast('error', 'Rollback Failed', err.message);
+    } finally {
+      setIsSavingFolder(false);
+    }
+  };
 
   const handleOpenConfig = (account: AccountItem) => {
     setSelectedAccount(account);
@@ -347,6 +450,33 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                 </div>
               </div>
 
+              {/* Content Source Folder Mapping */}
+              <div className="mt-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+                    <HardDrive className="w-4 h-4" />
+                  </span>
+                  <div className="truncate">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Content Source:</span>
+                      <span className="font-mono text-[11px] text-slate-800 dark:text-slate-200 font-bold truncate">
+                        {acc.drive_folder_name || 'Active Source Folder'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-mono text-slate-400 truncate">
+                      ID: {acc.drive_folder_id || '1VC5hQbbCsNk9LN1CbHshvDZ6CwxxmmOi'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleOpenFolderModal(acc)}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-slate-700 dark:text-slate-200 font-semibold text-[11px] shrink-0 transition-colors shadow-sm flex items-center gap-1.5"
+                >
+                  <FolderSync className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Swap Folder</span>
+                </button>
+              </div>
+
               {/* Status details footer */}
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
                 <span className="font-mono">ID: {acc.platform_account_id}</span>
@@ -570,6 +700,155 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Folder Swapping Modal */}
+      {isFolderModalOpen && selectedAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div onClick={() => setIsFolderModalOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg bg-white dark:bg-[#111726] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 z-10 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+                  <FolderSync className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Swap Source Folder
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Target account: <span className="font-semibold text-purple-600 dark:text-purple-400">@{selectedAccount.handle}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsFolderModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Service Account Share Notice */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+              <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>Google Drive Permission Required</span>
+              </div>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
+                Before validating, share your Google Drive folder as <strong className="text-slate-700 dark:text-slate-300">Viewer</strong> with the Engine&apos;s service account:
+              </p>
+              <div className="p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-[10px] text-blue-600 dark:text-blue-400 break-all select-all">
+                reels-drive-reader@theta-dialect-504423-f6.iam.gserviceaccount.com
+              </div>
+            </div>
+
+            {/* Folder Input & Validation */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Google Drive Folder URL or Folder ID
+                </label>
+                <div className="mt-1.5 flex gap-2">
+                  <input
+                    type="text"
+                    value={folderInput}
+                    onChange={(e) => setFolderInput(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/1VC5hQbbCs... or ID"
+                    className="flex-1 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleValidateFolder}
+                    disabled={isValidatingFolder || !folderInput.trim()}
+                    className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shrink-0"
+                  >
+                    {isValidatingFolder ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isValidatingFolder ? 'Checking...' : 'Validate'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Validation Result Box */}
+              {folderValidationResult && (
+                <div
+                  className={`p-3.5 rounded-2xl border text-xs ${
+                    folderValidationResult.valid
+                      ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-300'
+                      : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/50 text-rose-800 dark:text-rose-300'
+                  }`}
+                >
+                  {folderValidationResult.valid ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Ready to Ingest: &quot;{folderValidationResult.folderName}&quot;</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-600/90 dark:text-emerald-400/90">
+                        Detected <strong className="font-semibold">{folderValidationResult.videoCount} MP4 videos</strong> in folder. Safe ingestion verified.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-rose-700 dark:text-rose-400">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Folder Inaccessible</span>
+                      </div>
+                      <p className="text-[11px] text-rose-600/90 dark:text-rose-400/90">
+                        {folderValidationResult.error || 'Check that folder is shared with the service account.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Rollback Option if Previous Folder Exists */}
+              {selectedAccount.previous_drive_folder_id && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs">
+                  <div className="space-y-0.5">
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px]">Previous Source:</span>
+                    <p className="font-mono text-[11px] text-slate-700 dark:text-slate-300 truncate max-w-[200px]">
+                      {selectedAccount.previous_drive_folder_id}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRollbackFolder(selectedAccount.previous_drive_folder_id!)}
+                    disabled={isSavingFolder}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium transition-all"
+                  >
+                    <Undo2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Rollback</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsFolderModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDriveFolder}
+                disabled={isSavingFolder || !folderValidationResult?.valid}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md transition-all"
+              >
+                {isSavingFolder && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isSavingFolder ? 'Activating Source...' : 'Activate Source Folder'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
