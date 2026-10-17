@@ -26,8 +26,8 @@ export function GitHubWorkerUsage({ usage }: GitHubWorkerUsageProps) {
           </div>
         </div>
 
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
-          Calculated Estimate
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
+          Verified Billable
         </span>
       </div>
 
