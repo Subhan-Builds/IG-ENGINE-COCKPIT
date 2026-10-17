@@ -18,6 +18,7 @@ import {
   HardDrive,
   FolderSync,
   Undo2,
+  Sparkles,
 } from 'lucide-react';
 import { useApp } from '@/lib/themeContext';
 
@@ -76,6 +77,32 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
   const [isValidatingFolder, setIsValidatingFolder] = useState(false);
   const [folderValidationResult, setFolderValidationResult] = useState<any | null>(null);
   const [isSavingFolder, setIsSavingFolder] = useState(false);
+  const [isVerifyingAccount, setIsVerifyingAccount] = useState<string | null>(null);
+
+  const handlePostVerificationReel = async (account: AccountItem) => {
+    try {
+      setIsVerifyingAccount(account.id);
+      addToast('info', 'Publishing Verification Reel...', `Picking 1 ready video from folder for @${account.handle} and publishing live...`);
+      const res = await fetch('/api/videos/verify-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to post verification reel');
+
+      addToast(
+        'success',
+        'Verification Reel Live on Instagram!',
+        `Reel '${data.filename}' successfully posted to @${account.handle}! Media ID: ${data.mediaId}`
+      );
+      onRefresh();
+    } catch (err: any) {
+      addToast('error', 'Verification Failed', err.message);
+    } finally {
+      setIsVerifyingAccount(null);
+    }
+  };
 
   const handleOpenFolderModal = (account: AccountItem) => {
     setSelectedAccount(account);
@@ -468,13 +495,28 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleOpenFolderModal(acc)}
-                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-slate-700 dark:text-slate-200 font-semibold text-[11px] shrink-0 transition-colors shadow-sm flex items-center gap-1.5"
-                >
-                  <FolderSync className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Swap Folder</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handlePostVerificationReel(acc)}
+                    disabled={isVerifyingAccount === acc.id}
+                    className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 font-semibold text-[11px] shrink-0 transition-colors shadow-sm flex items-center gap-1.5 hover:bg-purple-100 dark:hover:bg-purple-900/60 disabled:opacity-50"
+                    title="Publish 1 sample reel to Instagram right now for instant visual verification"
+                  >
+                    {isVerifyingAccount === acc.id ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-500" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                    )}
+                    <span>{isVerifyingAccount === acc.id ? 'Posting...' : 'Verify & Post 1 Reel'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleOpenFolderModal(acc)}
+                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-slate-700 dark:text-slate-200 font-semibold text-[11px] shrink-0 transition-colors shadow-sm flex items-center gap-1.5"
+                  >
+                    <FolderSync className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Swap Folder</span>
+                  </button>
+                </div>
               </div>
 
               {/* Status details footer */}
