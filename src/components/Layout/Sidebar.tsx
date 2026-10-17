@@ -49,7 +49,6 @@ export function Sidebar({
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'posts', label: 'Posts', icon: Film, badge: publishedCount > 0 ? publishedCount : undefined },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'experiments', label: 'Experiments', icon: FlaskConical, badge: hasActiveExperiment ? '•' : undefined },
     { id: 'health', label: 'Health', icon: Activity, badge: attentionCount > 0 ? '!' : undefined },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
