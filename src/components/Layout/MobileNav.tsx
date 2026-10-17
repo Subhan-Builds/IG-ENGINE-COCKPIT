@@ -32,7 +32,6 @@ export function MobileNav() {
   const secondaryTabs: { id: TabType; label: string; icon: React.ElementType }[] = [
     { id: 'posts', label: 'Published Reels', icon: Film },
     { id: 'analytics', label: 'Analytics & Insights', icon: BarChart3 },
-    { id: 'experiments', label: 'Experiment Lab', icon: FlaskConical },
     { id: 'health', label: 'System Health', icon: Activity },
     { id: 'settings', label: 'Engine Settings', icon: Settings },
   ];
