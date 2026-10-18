@@ -97,12 +97,15 @@ export async function GET() {
         let quota = { quota_total: 100, quota_usage: 0, remaining: 100 };
         if (acc.platform === 'instagram' && acc.status === 'connected' && acc.access_token) {
           quota = await getPublishingLimit(acc.platform_account_id, acc.access_token);
+        } else if (acc.platform === 'youtube') {
+          // YouTube Data API v3 daily quota (10,000 units/day, ~1,600 units per video upload)
+          quota = { quota_total: 10000, quota_usage: 0, remaining: 10000 };
         }
 
         return {
           ...acc,
           access_token: acc.access_token ? `***${acc.access_token.slice(-6)}` : undefined,
-          has_token: !!acc.access_token,
+          has_token: !!(acc.access_token || (acc as any).refresh_token),
           quota,
         };
       })
@@ -178,6 +181,58 @@ export async function POST(req: NextRequest) {
         account: {
           ...newAccount,
           access_token: `***${newAccount.access_token?.slice(-6)}`,
+        },
+      });
+    }
+
+    if (action === 'connect_youtube') {
+      const { channelId, channelTitle, customUrl, refreshToken, clientId, clientSecret, frequency, times } = body;
+      if (!channelId || !refreshToken) {
+        return NextResponse.json(
+          { error: 'YouTube Channel ID and Refresh Token are required.' },
+          { status: 400 }
+        );
+      }
+
+      const cleanHandle = (customUrl || channelTitle || channelId).replace(/^@/, '').toLowerCase().replace(/\s+/g, '.');
+      const existingIdx = currentAccounts.findIndex(
+        (a) => a.platform_account_id === channelId || a.handle === cleanHandle
+      );
+
+      const newAccount: any = {
+        id: existingIdx >= 0 ? currentAccounts[existingIdx].id : `acc_yt_${channelId.slice(0, 8).toLowerCase()}`,
+        name: channelTitle || `YouTube: ${cleanHandle}`,
+        handle: cleanHandle,
+        platform: 'youtube',
+        platform_account_id: channelId,
+        account_type: 'YOUTUBE_CREATOR',
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+        status: 'connected',
+        is_default: false,
+        posting_frequency: frequency || 2,
+        posting_times: times || ['14:00', '20:00'],
+        posting_enabled: true,
+        caption_template: '#shorts #trending #viral #fyp',
+        created_at: new Date().toISOString(),
+        last_synced_at: new Date().toISOString(),
+      };
+
+      let updated: EngineAccount[];
+      if (existingIdx >= 0) {
+        updated = [...currentAccounts];
+        updated[existingIdx] = { ...currentAccounts[existingIdx], ...newAccount };
+      } else {
+        updated = [...currentAccounts, newAccount];
+      }
+
+      await saveStoredAccounts(updated);
+      return NextResponse.json({
+        success: true,
+        account: {
+          ...newAccount,
+          refresh_token: `***${refreshToken.slice(-6)}`,
         },
       });
     }
