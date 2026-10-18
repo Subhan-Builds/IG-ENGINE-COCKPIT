@@ -9,6 +9,8 @@ import {
   Users,
   ChevronDown,
   Send,
+  Youtube,
+  Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +39,8 @@ export function Header({
     accounts[0] ||
     null;
 
+  const isYouTube = activeAccount?.platform === 'youtube';
+
   return (
     <header className="px-6 pt-5 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/60">
       {/* Left: Brand & Active Context */}
@@ -44,8 +48,11 @@ export function Header({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-              IG Engine Cockpit
+              Media Engine Cockpit
             </h1>
+            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              v3.0.0
+            </span>
             <span className="flex h-2 w-2 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -54,7 +61,12 @@ export function Header({
           <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             {activeAccount ? (
               <>
-                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                  {isYouTube ? (
+                    <Youtube className="w-3.5 h-3.5 text-red-500 inline" />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-pink-500 inline-block" />
+                  )}
                   @{activeAccount.handle}
                 </span>
                 <span>•</span>
@@ -85,7 +97,7 @@ export function Header({
             <option value="all">All Accounts ({accounts.length})</option>
             {accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
-                @{acc.handle}
+                {acc.platform === 'youtube' ? '🔴 [YT]' : '📸 [IG]'} @{acc.handle}
               </option>
             ))}
           </select>
@@ -98,11 +110,15 @@ export function Header({
           <button
             onClick={onPublishNow}
             disabled={isPublishing}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md disabled:opacity-50 transition-all"
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-white font-semibold text-xs shadow-md disabled:opacity-50 transition-all ${
+              isYouTube
+                ? 'bg-red-600 hover:bg-red-500'
+                : 'bg-blue-600 hover:bg-blue-500'
+            }`}
             title={
               activeAccount
-                ? `Publish next ready reel for @${activeAccount.handle}`
-                : 'Publish next ready reel'
+                ? `Publish next ready ${isYouTube ? 'short' : 'reel'} for @${activeAccount.handle}`
+                : `Publish next ready video`
             }
           >
             {isPublishing ? (
@@ -114,8 +130,10 @@ export function Header({
               {isPublishing
                 ? 'Publishing...'
                 : activeAccount && selectedAccountId !== 'all'
-                ? `Publish Reel (@${activeAccount.handle})`
-                : 'Publish Next Reel'}
+                ? isYouTube
+                  ? `Publish Short (@${activeAccount.handle})`
+                  : `Publish Reel (@${activeAccount.handle})`
+                : 'Publish Next Video'}
             </span>
           </button>
         )}
