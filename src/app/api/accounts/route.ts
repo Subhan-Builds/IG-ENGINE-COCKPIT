@@ -187,36 +187,107 @@ export async function POST(req: NextRequest) {
 
     if (action === 'connect_youtube') {
       const { channelId, channelTitle, customUrl, refreshToken, clientId, clientSecret, frequency, times } = body;
-      if (!channelId || !refreshToken) {
+      if (!refreshToken) {
         return NextResponse.json(
-          { error: 'YouTube Channel ID and Refresh Token are required.' },
+          { error: 'Google Refresh Token is required to connect a YouTube channel.' },
           { status: 400 }
         );
       }
 
-      const cleanHandle = (customUrl || channelTitle || channelId).replace(/^@/, '').toLowerCase().replace(/\s+/g, '.');
+      const effectiveClientId = clientId || process.env.YOUTUBE_CLIENT_ID || process.env.NEXT_PUBLIC_YOUTUBE_CLIENT_ID || '';
+      const effectiveClientSecret = clientSecret || process.env.YOUTUBE_CLIENT_SECRET || '';
+
+      // 1. Authenticate with Google OAuth2 Token Endpoint
+      let accessToken = '';
+      try {
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: effectiveClientId,
+            client_secret: effectiveClientSecret,
+            refresh_token: refreshToken.trim(),
+            grant_type: 'refresh_token',
+          }),
+        });
+
+        const tokenData = await tokenRes.json();
+        if (!tokenRes.ok || !tokenData.access_token) {
+          const errDesc = tokenData.error_description || tokenData.error || 'Google rejected the refresh token';
+          return NextResponse.json(
+            { error: `Google OAuth Authorization Failed: ${errDesc}. Please run the 1-click authenticator script to obtain a valid token.` },
+            { status: 400 }
+          );
+        }
+        accessToken = tokenData.access_token;
+      } catch (authErr: any) {
+        return NextResponse.json(
+          { error: `Failed to reach Google OAuth servers: ${authErr.message}` },
+          { status: 502 }
+        );
+      }
+
+      // 2. Fetch Verified Channel Details directly from YouTube Data API
+      let verifiedChannelId = channelId?.trim() || '';
+      let verifiedTitle = channelTitle?.trim() || '';
+      let verifiedHandle = customUrl?.trim() || '';
+      let verifiedThumb = '';
+      let subscriberCount = '0';
+
+      try {
+        const chRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const chData = await chRes.json();
+        if (chData.items && chData.items.length > 0) {
+          const ch = chData.items[0];
+          verifiedChannelId = ch.id;
+          verifiedTitle = ch.snippet?.title || verifiedTitle;
+          verifiedHandle = (ch.snippet?.customUrl || ch.snippet?.title || verifiedChannelId).replace(/^@/, '');
+          verifiedThumb = ch.snippet?.thumbnails?.default?.url || '';
+          subscriberCount = ch.statistics?.subscriberCount || '0';
+        }
+      } catch (chErr) {
+        console.warn('Could not auto-fetch channel snippet, falling back to supplied info:', chErr);
+      }
+
+      if (!verifiedChannelId) {
+        return NextResponse.json(
+          { error: 'No YouTube channel found associated with this Google Account. Please create a channel first.' },
+          { status: 400 }
+        );
+      }
+
+      const cleanHandle = verifiedHandle.toLowerCase().replace(/\s+/g, '.');
       const existingIdx = currentAccounts.findIndex(
-        (a) => a.platform_account_id === channelId || a.handle === cleanHandle
+        (a) => a.platform_account_id === verifiedChannelId || a.handle === cleanHandle
       );
 
       const newAccount: any = {
-        id: existingIdx >= 0 ? currentAccounts[existingIdx].id : `acc_yt_${channelId.slice(0, 8).toLowerCase()}`,
-        name: channelTitle || `YouTube: ${cleanHandle}`,
+        id: existingIdx >= 0 ? currentAccounts[existingIdx].id : `acc_yt_${verifiedChannelId.slice(0, 8).toLowerCase()}`,
+        name: verifiedTitle || `YouTube: @${cleanHandle}`,
         handle: cleanHandle,
         platform: 'youtube',
-        platform_account_id: channelId,
+        platform_account_id: verifiedChannelId,
         account_type: 'YOUTUBE_CREATOR',
-        refresh_token: refreshToken,
-        client_id: clientId,
-        client_secret: clientSecret,
+        profile_picture_url: verifiedThumb,
+        access_token: accessToken,
+        refresh_token: refreshToken.trim(),
+        client_id: effectiveClientId,
+        client_secret: effectiveClientSecret,
         status: 'connected',
         is_default: false,
         posting_frequency: frequency || 2,
         posting_times: times || ['14:00', '20:00'],
         posting_enabled: true,
+        drive_folder_id: '',
+        drive_folder_name: '',
         caption_template: '#shorts #trending #viral #fyp',
         created_at: new Date().toISOString(),
         last_synced_at: new Date().toISOString(),
+        metadata: {
+          subscriber_count: subscriberCount,
+        },
       };
 
       let updated: EngineAccount[];
@@ -232,7 +303,7 @@ export async function POST(req: NextRequest) {
         success: true,
         account: {
           ...newAccount,
-          refresh_token: `***${refreshToken.slice(-6)}`,
+          refresh_token: `***${refreshToken.trim().slice(-6)}`,
         },
       });
     }
