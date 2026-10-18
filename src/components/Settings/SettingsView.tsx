@@ -26,6 +26,7 @@ import {
   Layers,
   Heart,
   Linkedin,
+  Youtube,
 } from 'lucide-react';
 import { useApp } from '@/lib/themeContext';
 import { ConfirmDialog } from '@/components/UI/ConfirmDialog';
@@ -242,17 +243,24 @@ export function SettingsView({
           {/* Per-Account Tabs */}
           {accounts.map((acc) => {
             const isActive = activeSettingsTab === `account_${acc.id}`;
+            const isYT = acc.platform === 'youtube';
             return (
               <button
                 key={acc.id}
                 onClick={() => setActiveSettingsTab(`account_${acc.id}`)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-all ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    ? isYT
+                      ? 'bg-red-600 text-white shadow-md shadow-red-500/20'
+                      : 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                     : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
+                {isYT ? (
+                  <Youtube className="w-3.5 h-3.5 text-red-100" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-pink-500" />
+                )}
                 <span>@{acc.handle}</span>
                 <span
                   className={`w-2 h-2 rounded-full ${
@@ -619,20 +627,22 @@ export function SettingsView({
 
             <div className="relative z-10 space-y-4">
               <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs font-mono font-bold tracking-wider uppercase">
-                  Engine Architecture v2.4.0
+                <span className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-red-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-mono font-bold tracking-wider uppercase flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5" />
+                  Engine Architecture v3.0.0
                 </span>
-                <span className="text-xs font-mono text-slate-400">Production Release</span>
+                <span className="text-xs font-mono text-slate-400">Multi-Platform Release</span>
               </div>
 
               <div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  IG Engine Ecosystem
+                  Media Engine Ecosystem
                 </h2>
                 <p className="text-sm text-slate-300 max-w-2xl mt-1.5 leading-relaxed">
-                  Autonomous, zero-cost cloud architecture orchestrating multi-account video distribution from
-                  Google Drive through Hugging Face edge storage, Supabase state management, GitHub Actions cron
-                  runners, and Meta Graph API v21.0.
+                  Autonomous, zero-cost cloud architecture orchestrating multi-account and multi-platform video
+                  distribution from Google Drive through Hugging Face edge storage, Supabase state management, GitHub
+                  Actions cron runners, Meta Graph API v21.0 (Instagram Reels), and Google Cloud YouTube Data API v3
+                  (YouTube Shorts).
                 </p>
               </div>
 
@@ -668,10 +678,10 @@ export function SettingsView({
               <Compass className="w-5 h-5 text-indigo-500" />
               <div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                  The Next Evolution: Multi-Platform Syndication
+                  Multi-Platform Syndication & Distribution Matrix
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Roadmap and upcoming architectural milestone
+                  Cross-platform syndication architecture
                 </p>
               </div>
             </div>
@@ -679,34 +689,29 @@ export function SettingsView({
             <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200/60 dark:border-blue-800/40 space-y-3 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
               <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-sm">
                 <Globe2 className="w-4 h-4 text-blue-500" />
-                <span>Phase 1 to Phase 2 Transition</span>
+                <span>Multi-Platform Era Achieved</span>
               </div>
               <p>
-                The engine began as an autonomous, single-account publisher and has now graduated to a{' '}
+                The engine began as an autonomous, single-account publisher and graduated to a{' '}
                 <strong className="text-blue-600 dark:text-blue-400 font-semibold">
                   Multi-Account Same-Platform Automation Tool
-                </strong>{' '}
-                with equal peer account isolation, independent quotas, and schedule refill protection.
-              </p>
-              <p>
-                In the upcoming major release, the engine will expand into a full{' '}
+                </strong>. Today with v3.0.0, the engine operates as a full{' '}
                 <strong className="text-indigo-600 dark:text-indigo-400 font-semibold">
                   Multi-Platform & Multi-Account Automation System
-                </strong>
-                . A single video source will syndicate simultaneously across:
+                </strong>:
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 font-mono text-[11px]">
-                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-pink-500/30 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                  <span>Instagram Reels (Active)</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">Instagram Reels (Active)</span>
                 </div>
-                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
-                  <span>YouTube Shorts (Upcoming)</span>
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-red-500/30 flex items-center gap-2">
+                  <Youtube className="w-3.5 h-3.5 text-red-600" />
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">YouTube Shorts (Active)</span>
                 </div>
                 <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
-                  <span>TikTok & FB Reels (Upcoming)</span>
+                  <span className="text-slate-500 dark:text-slate-400">TikTok & FB Reels (Roadmap)</span>
                 </div>
               </div>
             </div>
@@ -723,12 +728,29 @@ export function SettingsView({
             </div>
 
             <div className="space-y-3 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-indigo-200/60 dark:border-indigo-800/60 space-y-1.5">
+                <div className="flex items-center justify-between font-mono">
+                  <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                    v3.0.0 — Multi-Platform Cross-Ecosystem Era
+                  </span>
+                  <span className="text-[10px] text-emerald-500 font-semibold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Current Live
+                  </span>
+                </div>
+                <ul className="list-disc list-inside text-slate-600 dark:text-slate-400 text-[11px] space-y-1 pt-1">
+                  <li>Multi-Platform Architecture: Native support for both Instagram Reels and YouTube Shorts.</li>
+                  <li>Google Cloud Console OAuth 2.0 Integration: Installed desktop OAuth credentials for YouTube Data API v3.</li>
+                  <li>Platform-Aware Filtering & Controls: Filter accounts by platform (All, Instagram, YouTube) with specialized cards.</li>
+                  <li>YouTube Quota Management: 10,000 units/day quota allocation, Shorts metadata tagging, and auto-scheduling.</li>
+                  <li>Zero Schedule Disruption: Retained slot refill engine and Google Drive folder swapping across platforms.</li>
+                </ul>
+              </div>
+
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/60 space-y-1.5">
                 <div className="flex items-center justify-between font-mono">
                   <span className="font-bold text-slate-900 dark:text-white">v2.4.0 — Peer Multi-Account & Slot Refill</span>
-                  <span className="text-[10px] text-emerald-500 font-semibold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                    Current Live
-                  </span>
+                  <span className="text-[10px] text-slate-400 font-semibold uppercase">Archived</span>
                 </div>
                 <ul className="list-disc list-inside text-slate-600 dark:text-slate-400 text-[11px] space-y-1 pt-1">
                   <li>Equal Peer Architecture: Removed hardcoded primary badges and restrictions across all accounts.</li>
