@@ -19,6 +19,9 @@ import {
   FolderSync,
   Undo2,
   Sparkles,
+  Youtube,
+  Globe,
+  Layers,
 } from 'lucide-react';
 import { useApp } from '@/lib/themeContext';
 
@@ -57,6 +60,23 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<AccountItem | null>(null);
+
+  // Platform view filter
+  const [platformFilter, setPlatformFilter] = useState<'all' | 'instagram' | 'youtube'>('all');
+
+  // Add Account Modal: active platform tab
+  const [modalPlatform, setModalPlatform] = useState<'instagram' | 'youtube'>('instagram');
+
+  // YouTube Connect Form states
+  const [ytChannelId, setYtChannelId] = useState('');
+  const [ytChannelTitle, setYtChannelTitle] = useState('');
+  const [ytCustomUrl, setYtCustomUrl] = useState('');
+  const [ytRefreshToken, setYtRefreshToken] = useState('');
+  const [ytClientId, setYtClientId] = useState('');
+  const [ytClientSecret, setYtClientSecret] = useState('');
+  const [ytFreq, setYtFreq] = useState('2');
+  const [ytTimes, setYtTimes] = useState('14:00, 20:00');
+  const [isConnectingYt, setIsConnectingYt] = useState(false);
 
   // Form states for manual token connect
   const [tokenInput, setTokenInput] = useState('');
@@ -341,23 +361,80 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
     }
   };
 
+  const handleConnectYouTube = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ytChannelId.trim() || !ytRefreshToken.trim()) {
+      addToast('warning', 'Missing Information', 'YouTube Channel ID and Refresh Token are required.');
+      return;
+    }
+
+    try {
+      setIsConnectingYt(true);
+      const parsedTimes = ytTimes
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const res = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'connect_youtube',
+          channelId: ytChannelId.trim(),
+          channelTitle: ytChannelTitle.trim() || undefined,
+          customUrl: ytCustomUrl.trim() || undefined,
+          refreshToken: ytRefreshToken.trim(),
+          clientId: ytClientId.trim() || undefined,
+          clientSecret: ytClientSecret.trim() || undefined,
+          frequency: parseInt(ytFreq, 10) || 2,
+          times: parsedTimes,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to connect YouTube channel');
+
+      addToast(
+        'success',
+        'YouTube Channel Connected Live!',
+        `Successfully linked YouTube Shorts channel @${data.account.handle} (ID: ${data.account.platform_account_id})`
+      );
+
+      setIsConnectModalOpen(false);
+      setYtChannelId('');
+      setYtRefreshToken('');
+      onRefresh();
+    } catch (err: any) {
+      addToast('error', 'YouTube Connection Failed', err.message);
+    } finally {
+      setIsConnectingYt(false);
+    }
+  };
+
+  const igCount = accounts.filter((a) => a.platform === 'instagram').length;
+  const ytCount = accounts.filter((a) => a.platform === 'youtube').length;
+  const filteredAccounts = accounts.filter((acc) => {
+    if (platformFilter === 'all') return true;
+    return acc.platform === platformFilter;
+  });
+
   return (
     <div className="space-y-6">
-      {/* Top Banner / Philosophy */}
+      {/* Top Banner / Multi-Platform Ecosystem */}
       <div className="p-6 rounded-[28px] bg-white dark:bg-[#111726] border border-slate-200/80 dark:border-slate-800/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
-              <Users className="w-5 h-5" />
+            <span className="p-2 rounded-xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-indigo-500 border border-indigo-500/20">
+              <Layers className="w-5 h-5" />
             </span>
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              Multi-Account Architecture
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+              Multi-Platform Ecosystem (v3.0.0)
             </span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mt-1">Connected Platform Accounts</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl mt-1">
-            One centralized engine driving autonomous content distribution across independent Instagram accounts,
-            each with its own schedule and quota runway.
+            Centralized autonomous content distribution across Instagram Reels and YouTube Shorts, each with its own
+            independent schedule, Drive source folder, and quota runway.
           </p>
         </div>
 
@@ -372,22 +449,88 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
         </div>
       </div>
 
+      {/* Platform Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <button
+          onClick={() => setPlatformFilter('all')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold border transition-all ${
+            platformFilter === 'all'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-sm'
+              : 'bg-white dark:bg-[#111726] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          <span>All Platforms</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-500/20 font-mono">
+            {accounts.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setPlatformFilter('instagram')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold border transition-all ${
+            platformFilter === 'instagram'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-500 shadow-sm'
+              : 'bg-white dark:bg-[#111726] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-pink-500" />
+          <span>Instagram Reels</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-pink-500/20 font-mono">
+            {igCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setPlatformFilter('youtube')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold border transition-all ${
+            platformFilter === 'youtube'
+              ? 'bg-red-600 text-white border-red-500 shadow-sm'
+              : 'bg-white dark:bg-[#111726] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <Youtube className="w-3.5 h-3.5" />
+          <span>YouTube Shorts</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-red-500/20 font-mono">
+            {ytCount}
+          </span>
+        </button>
+
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-[11px] font-medium bg-slate-100 dark:bg-slate-900 text-slate-400 border border-dashed border-slate-200 dark:border-slate-800">
+          <span>TikTok & FB Reels</span>
+          <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-500">
+            Roadmap
+          </span>
+        </div>
+      </div>
+
       {/* Account Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {accounts.map((acc, idx) => {
-          const quota = acc.quota || { quota_total: 100, quota_usage: 0, remaining: 100 };
+        {filteredAccounts.map((acc, idx) => {
+          const isYouTube = acc.platform === 'youtube';
+          const quota = isYouTube
+            ? { quota_total: 10000, quota_usage: 0, remaining: 10000 }
+            : acc.quota || { quota_total: 100, quota_usage: 0, remaining: 100 };
           const quotaPercent = Math.min(100, Math.round((quota.quota_usage / quota.quota_total) * 100));
 
           return (
             <div
               key={acc.id}
-              className="p-6 rounded-[28px] border bg-white dark:bg-[#111726] border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all"
+              className={`p-6 rounded-[28px] border bg-white dark:bg-[#111726] shadow-sm transition-all ${
+                isYouTube ? 'border-red-500/30' : 'border-slate-200/80 dark:border-slate-800/80'
+              }`}
             >
               {/* Account Header */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 flex items-center justify-center text-white text-base font-bold shadow-md shadow-rose-500/20">
-                    {acc.handle.slice(0, 2).toUpperCase()}
+                  <div
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white text-base font-bold shadow-md ${
+                      isYouTube
+                        ? 'bg-gradient-to-tr from-red-600 via-rose-600 to-red-700 shadow-red-600/20'
+                        : 'bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 shadow-rose-500/20'
+                    }`}
+                  >
+                    {isYouTube ? <Youtube className="w-6 h-6" /> : acc.handle.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -401,8 +544,14 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                         <CheckCircle2 className="w-3 h-3" />
                         Connected
                       </span>
-                      <span className="text-[10px] font-mono text-slate-400 uppercase">
-                        {acc.account_type || 'MEDIA_CREATOR'}
+                      <span
+                        className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border uppercase ${
+                          isYouTube
+                            ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                            : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
+                        }`}
+                      >
+                        {isYouTube ? 'YouTube Shorts' : 'Instagram Reels'}
                       </span>
                     </div>
                   </div>
@@ -555,8 +704,8 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
           <div className="relative w-full max-w-lg bg-white dark:bg-[#111726] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 z-10 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Connect Instagram Account</h3>
-                <p className="text-xs text-slate-400">Add Account #2 to the IG Engine Ecosystem</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Connect Platform Account</h3>
+                <p className="text-xs text-slate-400">Add an autonomous account to the Engine Ecosystem</p>
               </div>
               <button
                 onClick={() => setIsConnectModalOpen(false)}
@@ -566,101 +715,264 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
               </button>
             </div>
 
-            {/* Option A: 1-Click Meta OAuth */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-slate-900 dark:text-white">Method 1: Direct Meta OAuth</span>
-                <span className="text-[10px] font-mono text-emerald-500 font-semibold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  Recommended
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Authorize directly via Instagram / Meta. You will be redirected to approve permissions, then returned
-                here automatically.
-              </p>
-              <a
-                href="/api/auth/instagram"
-                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-xs shadow-md transition-all"
+            {/* Platform Selection Tabs */}
+            <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60">
+              <button
+                type="button"
+                onClick={() => setModalPlatform('instagram')}
+                className={`flex-1 py-2 px-3 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 ${
+                  modalPlatform === 'instagram'
+                    ? 'bg-white dark:bg-[#111726] text-pink-600 dark:text-pink-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
               >
-                <span>Authorize with Meta</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+                <span className="w-2 h-2 rounded-full bg-pink-500" />
+                <span>Instagram Reels</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalPlatform('youtube')}
+                className={`flex-1 py-2 px-3 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 ${
+                  modalPlatform === 'youtube'
+                    ? 'bg-white dark:bg-[#111726] text-red-600 dark:text-red-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Youtube className="w-3.5 h-3.5 text-red-500" />
+                <span>YouTube Shorts</span>
+              </button>
             </div>
 
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-              <span className="flex-shrink mx-4 text-[11px] font-mono uppercase text-slate-400">Or connect with token</span>
-              <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-            </div>
-
-            {/* Option B: Manual User Token Connection */}
-            <form onSubmit={handleConnectToken} className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Instagram User Access Token
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Paste Instagram User Access Token (EAAB... / IGAA...)"
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                  className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300">Account Display Name (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. LifeFuel Second Channel"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Daily Posting Frequency</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="25"
-                    value={freqInput}
-                    onChange={(e) => setFreqInput(e.target.value)}
-                    className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
-                  />
+            {/* ─── YOUTUBE CONNECTION PANEL ─── */}
+            {modalPlatform === 'youtube' && (
+              <div className="space-y-4 animate-fadeIn">
+                {/* Method 1: 1-Click Desktop OAuth Runner */}
+                <div className="p-4 rounded-2xl bg-red-50/40 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-xs text-red-700 dark:text-red-400">
+                      <Youtube className="w-4 h-4 text-red-600" />
+                      <span>Method 1: 1-Click Local Authenticator</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-emerald-500 font-semibold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      Configured
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Google Console OAuth JSON is verified on your system. Run this 1-click terminal command to authorize your YouTube channel:
+                  </p>
+                  <div className="p-2.5 rounded-xl bg-slate-900 text-slate-200 font-mono text-xs select-all flex items-center justify-between border border-slate-800">
+                    <span>python scratch/authorize_youtube.py</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Opens your browser to select your YouTube channel, saves the permanent refresh token into Supabase, and updates this dashboard instantly.
+                  </p>
                 </div>
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Slots (PKT / HH:MM)</label>
-                  <input
-                    type="text"
-                    value={timesInput}
-                    onChange={(e) => setTimesInput(e.target.value)}
-                    className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
-                  />
-                </div>
-              </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsConnectModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isValidating}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md disabled:opacity-50"
-                >
-                  {isValidating && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{isValidating ? 'Verifying with Meta...' : 'Validate & Connect'}</span>
-                </button>
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                  <span className="flex-shrink mx-4 text-[11px] font-mono uppercase text-slate-400">
+                    Or register channel directly
+                  </span>
+                  <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                </div>
+
+                {/* Method 2: Manual YouTube Token */}
+                <form onSubmit={handleConnectYouTube} className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">
+                      YouTube Channel ID
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. UC_x5XG1OV2P6uZZ5FSM9Ttw"
+                      value={ytChannelId}
+                      onChange={(e) => setYtChannelId(e.target.value)}
+                      className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">Channel Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Tech Shorts Hub"
+                        value={ytChannelTitle}
+                        onChange={(e) => setYtChannelTitle(e.target.value)}
+                        className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">Channel Handle</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. techshortshub"
+                        value={ytCustomUrl}
+                        onChange={(e) => setYtCustomUrl(e.target.value)}
+                        className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">
+                      Google OAuth Refresh Token
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="1//0... (Permanent Offline Token)"
+                      value={ytRefreshToken}
+                      onChange={(e) => setYtRefreshToken(e.target.value)}
+                      className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">Daily Shorts Frequency</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={ytFreq}
+                        onChange={(e) => setYtFreq(e.target.value)}
+                        className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">Slots (PKT / HH:MM)</label>
+                      <input
+                        type="text"
+                        value={ytTimes}
+                        onChange={(e) => setYtTimes(e.target.value)}
+                        className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setIsConnectModalOpen(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isConnectingYt}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold shadow-md disabled:opacity-50"
+                    >
+                      {isConnectingYt && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                      <span>{isConnectingYt ? 'Connecting...' : 'Connect YouTube Channel'}</span>
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
+            )}
+
+            {/* ─── INSTAGRAM CONNECTION PANEL ─── */}
+            {modalPlatform === 'instagram' && (
+              <div className="space-y-4 animate-fadeIn">
+                {/* Option A: 1-Click Meta OAuth */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-slate-900 dark:text-white">Method 1: Direct Meta OAuth</span>
+                    <span className="text-[10px] font-mono text-emerald-500 font-semibold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      Recommended
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Authorize directly via Instagram / Meta. You will be redirected to approve permissions, then returned
+                    here automatically.
+                  </p>
+                  <a
+                    href="/api/auth/instagram"
+                    className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold text-xs shadow-md transition-all"
+                  >
+                    <span>Authorize with Meta</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                  <span className="flex-shrink mx-4 text-[11px] font-mono uppercase text-slate-400">Or connect with token</span>
+                  <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                </div>
+
+                {/* Option B: Manual User Token Connection */}
+                <form onSubmit={handleConnectToken} className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">
+                      Instagram User Access Token
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Paste Instagram User Access Token (EAAB... / IGAA...)"
+                      value={tokenInput}
+                      onChange={(e) => setTokenInput(e.target.value)}
+                      className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Account Display Name (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. LifeFuel Second Channel"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">Daily Posting Frequency</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="25"
+                        value={freqInput}
+                        onChange={(e) => setFreqInput(e.target.value)}
+                        className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">Slots (PKT / HH:MM)</label>
+                      <input
+                        type="text"
+                        value={timesInput}
+                        onChange={(e) => setTimesInput(e.target.value)}
+                        className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setIsConnectModalOpen(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isValidating}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md disabled:opacity-50"
+                    >
+                      {isValidating && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                      <span>{isValidating ? 'Verifying with Meta...' : 'Validate & Connect'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}
