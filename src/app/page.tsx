@@ -52,7 +52,7 @@ export default function DashboardPage() {
 
         const [accRes, vidsRes, setRes, healthRes, workerRes, mediaRes] = await Promise.all([
           fetch('/api/accounts', { cache: 'no-store' }),
-          fetch('/api/videos', { cache: 'no-store' }),
+          fetch(`/api/videos${accountQuery}`, { cache: 'no-store' }),
           fetch('/api/settings', { cache: 'no-store' }),
           fetch('/api/health', { cache: 'no-store' }),
           fetch('/api/worker/runs', { cache: 'no-store' }),
@@ -116,16 +116,19 @@ export default function DashboardPage() {
   }, [fetchData, addToast]);
 
   // Account-filtered dataset
+  const validAccountIds = new Set(accounts.map((a) => a.id));
   const filteredVideos = videos.filter((v) => {
-    if (selectedAccountId === 'all') return true;
     const vidAcc = v.account_id || 'acc_lifefuel_01';
+    if (!validAccountIds.has(vidAcc)) return false;
+    if (selectedAccountId === 'all') return true;
     return vidAcc === selectedAccountId;
   });
 
   const filteredPosts = publishedPosts.filter((p) => {
+    const postAcc = p.account_id || 'acc_lifefuel_01';
+    if (!validAccountIds.has(postAcc)) return false;
     if (selectedAccountId === 'all') return true;
-    const vidAcc = p.account_id || 'acc_lifefuel_01';
-    return vidAcc === selectedAccountId;
+    return postAcc === selectedAccountId;
   });
 
   // Active account metadata
