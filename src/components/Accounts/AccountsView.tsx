@@ -80,9 +80,9 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
   const [copiedCommand, setCopiedCommand] = useState(false);
 
   const handleCopyCommand = () => {
-    navigator.clipboard.writeText('python scratch/authorize_youtube.py');
+    navigator.clipboard.writeText('python "F:\\IG ENGINE ECOSYSTEM\\scratch\\authorize_youtube.py"');
     setCopiedCommand(true);
-    addToast('success', 'Command Copied!', 'Run "python scratch/authorize_youtube.py" in your PowerShell terminal.');
+    addToast('success', 'Command Copied!', 'Run the command in your PowerShell terminal or double-click authorize_youtube.bat.');
     setTimeout(() => setCopiedCommand(false), 3000);
   };
 
@@ -133,8 +133,8 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
 
       addToast(
         'success',
-        'Verification Reel Live on Instagram!',
-        `Reel '${data.filename}' successfully posted to @${account.handle}! Media ID: ${data.mediaId}`
+        account.platform === 'youtube' ? 'YouTube Source Verified!' : 'Verification Reel Live on Instagram!',
+        data.message || `Reel '${data.filename}' successfully posted to @${account.handle}! Media ID: ${data.mediaId}`
       );
       onRefresh();
     } catch (err: any) {
@@ -648,15 +648,24 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                     <HardDrive className="w-4 h-4" />
                   </span>
                   <div className="min-w-0 flex-1 truncate">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">Folder:</span>
-                      <span className="font-mono text-[11px] text-slate-800 dark:text-slate-200 font-bold truncate">
-                        {acc.drive_folder_name || 'Active Source Folder'}
-                      </span>
-                    </div>
-                    <p className="text-[10px] font-mono text-slate-400 truncate">
-                      ID: {acc.drive_folder_id || '1VC5hQbbCsNk9LN1CbHshvDZ6CwxxmmOi'}
-                    </p>
+                    {acc.drive_folder_id ? (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">Folder:</span>
+                          <span className="font-mono text-[11px] text-slate-800 dark:text-slate-200 font-bold truncate">
+                            {acc.drive_folder_name || 'Active Source Folder'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-mono text-slate-400 truncate">
+                          ID: {acc.drive_folder_id}
+                        </p>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span className="text-xs font-medium truncate">No Google Drive folder linked yet — click Swap Folder to connect</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 dark:border-slate-800/60">
@@ -815,11 +824,11 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-300">
-                    Run this command in PowerShell. It opens your browser to select your YouTube channel, auto-detects all your channel details, and links it live:
+                    Run this command in any terminal (or double-click <span className="font-mono font-bold text-red-600 dark:text-red-400">authorize_youtube.bat</span> in <span className="font-mono">F:\IG ENGINE ECOSYSTEM</span>). It opens your browser to select your YouTube channel, auto-detects all your channel details, and links it live:
                   </p>
                   
                   <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs">
-                    <span className="flex-1 truncate pl-1">python scratch/authorize_youtube.py</span>
+                    <span className="flex-1 truncate pl-1">python "F:\IG ENGINE ECOSYSTEM\scratch\authorize_youtube.py"</span>
                     <button
                       type="button"
                       onClick={handleCopyCommand}
