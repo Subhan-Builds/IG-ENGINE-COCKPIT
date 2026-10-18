@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getAccountById } from '@/lib/accounts';
 import { publishReelDirectly } from '@/lib/instagram';
-import { listDriveVideos, downloadDriveFileStream } from '@/lib/drive';
-
+import { validateDriveFolder } from '@/lib/drive';
 import { triggerWorkflow } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +24,22 @@ export async function POST(req: NextRequest) {
         { error: `Account @${account.handle} has no Google Drive folder mapped.` },
         { status: 400 }
       );
+    }
+
+    if (account.platform === 'youtube') {
+      const result = await validateDriveFolder(account.drive_folder_id);
+      if (!result.valid) {
+        return NextResponse.json(
+          { error: result.error || 'Could not access Drive folder' },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        filename: result.sampleVideos?.[0] || 'YouTube Shorts Source',
+        mediaId: 'yt_verified',
+        message: `Verified folder '${result.folderName}' for YouTube Shorts @${account.handle}! Detected ${result.videoCount} video(s) in Drive.`,
+      });
     }
 
     // 1. Check if account already has an ingested video ready to publish
