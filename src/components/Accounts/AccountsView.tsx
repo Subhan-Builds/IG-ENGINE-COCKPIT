@@ -22,6 +22,13 @@ import {
   Youtube,
   Globe,
   Layers,
+  Copy,
+  Check,
+  HelpCircle,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  BookOpen,
 } from 'lucide-react';
 import { useApp } from '@/lib/themeContext';
 
@@ -66,6 +73,18 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
 
   // Add Account Modal: active platform tab
   const [modalPlatform, setModalPlatform] = useState<'instagram' | 'youtube'>('instagram');
+
+  // Expandable Help Guides
+  const [showInstagramGuide, setShowInstagramGuide] = useState(false);
+  const [showYouTubeGuide, setShowYouTubeGuide] = useState(true);
+  const [copiedCommand, setCopiedCommand] = useState(false);
+
+  const handleCopyCommand = () => {
+    navigator.clipboard.writeText('python scratch/authorize_youtube.py');
+    setCopiedCommand(true);
+    addToast('success', 'Command Copied!', 'Run "python scratch/authorize_youtube.py" in your PowerShell terminal.');
+    setTimeout(() => setCopiedCommand(false), 3000);
+  };
 
   // YouTube Connect Form states
   const [ytChannelId, setYtChannelId] = useState('');
@@ -623,14 +642,14 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
               </div>
 
               {/* Content Source Folder Mapping */}
-              <div className="mt-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="mt-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1 w-full sm:w-auto">
                   <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
                     <HardDrive className="w-4 h-4" />
                   </span>
-                  <div className="truncate">
+                  <div className="min-w-0 flex-1 truncate">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">Content Source:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">Folder:</span>
                       <span className="font-mono text-[11px] text-slate-800 dark:text-slate-200 font-bold truncate">
                         {acc.drive_folder_name || 'Active Source Folder'}
                       </span>
@@ -640,19 +659,19 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 dark:border-slate-800/60">
                   <button
                     onClick={() => handlePostVerificationReel(acc)}
                     disabled={isVerifyingAccount === acc.id}
                     className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 font-semibold text-[11px] shrink-0 transition-colors shadow-sm flex items-center gap-1.5 hover:bg-purple-100 dark:hover:bg-purple-900/60 disabled:opacity-50"
-                    title="Publish 1 sample reel to Instagram right now for instant visual verification"
+                    title={isYouTube ? "Publish 1 sample short to YouTube right now for instant visual verification" : "Publish 1 sample reel to Instagram right now for instant visual verification"}
                   >
                     {isVerifyingAccount === acc.id ? (
                       <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-500" />
                     ) : (
                       <Sparkles className="w-3.5 h-3.5 text-purple-500" />
                     )}
-                    <span>{isVerifyingAccount === acc.id ? 'Posting...' : 'Verify & Post 1 Reel'}</span>
+                    <span>{isVerifyingAccount === acc.id ? 'Posting...' : isYouTube ? 'Verify & Post 1 Short' : 'Verify & Post 1 Reel'}</span>
                   </button>
                   <button
                     onClick={() => handleOpenFolderModal(acc)}
@@ -746,32 +765,91 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
             {/* ─── YOUTUBE CONNECTION PANEL ─── */}
             {modalPlatform === 'youtube' && (
               <div className="space-y-4 animate-fadeIn">
+                {/* Expandable YouTube Guide Accordion */}
+                <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/40 dark:bg-red-950/20 overflow-hidden text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setShowYouTubeGuide(!showYouTubeGuide)}
+                    className="w-full p-3.5 flex items-center justify-between font-bold text-red-700 dark:text-red-400 hover:bg-red-100/40 dark:hover:bg-red-900/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-red-600" />
+                      <span>How to Connect YouTube (Read First)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                      <span>{showYouTubeGuide ? 'Hide Guide' : 'Show Guide'}</span>
+                      {showYouTubeGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </div>
+                  </button>
+                  {showYouTubeGuide && (
+                    <div className="p-4 pt-1 space-y-2.5 text-[11px] text-slate-600 dark:text-slate-300 border-t border-red-100 dark:border-red-900/30 leading-relaxed">
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-red-200/60 dark:border-red-900/40 space-y-1">
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Why Google does NOT have a copy-paste token like Meta:</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400">
+                          Google Cloud never displays a permanent &quot;Refresh Token&quot; in the web console for security. You must authorize through Google&apos;s interactive OAuth screen.
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="font-bold text-slate-900 dark:text-white">✨ Zero-Typing Solution (Method 1 Below):</div>
+                        <p>
+                          Since you already placed your JSON credentials file into the project, you don&apos;t need to look up your Channel ID, Name, or Handle!
+                          Just run the 1-click command below in PowerShell. It opens your browser, asks you to click &quot;Allow&quot;, and <strong>automatically detects your Channel ID, Name, and Handle</strong> and saves everything to Supabase.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Method 1: 1-Click Desktop OAuth Runner */}
-                <div className="p-4 rounded-2xl bg-red-50/40 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 space-y-2.5">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-red-200 dark:border-red-900/40 shadow-sm space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 font-bold text-xs text-red-700 dark:text-red-400">
                       <Youtube className="w-4 h-4 text-red-600" />
-                      <span>Method 1: 1-Click Local Authenticator</span>
+                      <span>Method 1: 1-Click Authenticator (Recommended)</span>
                     </div>
                     <span className="text-[10px] font-mono text-emerald-500 font-semibold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                      Configured
+                      Zero Typing
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-300">
-                    Google Console OAuth JSON is verified on your system. Run this 1-click terminal command to authorize your YouTube channel:
+                    Run this command in PowerShell. It opens your browser to select your YouTube channel, auto-detects all your channel details, and links it live:
                   </p>
-                  <div className="p-2.5 rounded-xl bg-slate-900 text-slate-200 font-mono text-xs select-all flex items-center justify-between border border-slate-800">
-                    <span>python scratch/authorize_youtube.py</span>
+                  
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs">
+                    <span className="flex-1 truncate pl-1">python scratch/authorize_youtube.py</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyCommand}
+                      className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-sans font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm shrink-0"
+                    >
+                      {copiedCommand ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5 text-white" />}
+                      <span>{copiedCommand ? 'Copied!' : 'Copy Command'}</span>
+                    </button>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Opens your browser to select your YouTube channel, saves the permanent refresh token into Supabase, and updates this dashboard instantly.
-                  </p>
+
+                  <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-500 dark:text-slate-400 pt-1">
+                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-center">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 block">1. Run Command</span>
+                      <span>Paste in terminal</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-center">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 block">2. Browser Opens</span>
+                      <span>Click &quot;Allow&quot;</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-center">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 block">3. Auto Connected</span>
+                      <span>Channel appears here</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="relative flex py-1 items-center">
                   <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
                   <span className="flex-shrink mx-4 text-[11px] font-mono uppercase text-slate-400">
-                    Or register channel directly
+                    Or manual token entry
                   </span>
                   <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
                 </div>
@@ -790,24 +868,27 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                       onChange={(e) => setYtChannelId(e.target.value)}
                       className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
                     />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Found in YouTube Studio &gt; Settings &gt; Channel &gt; Advanced settings &gt; Channel ID.
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="font-semibold text-slate-700 dark:text-slate-300">Channel Name</label>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">Channel Display Name</label>
                       <input
                         type="text"
-                        placeholder="e.g. Tech Shorts Hub"
+                        placeholder="e.g. Tech Cheat Codes"
                         value={ytChannelTitle}
                         onChange={(e) => setYtChannelTitle(e.target.value)}
                         className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white"
                       />
                     </div>
                     <div>
-                      <label className="font-semibold text-slate-700 dark:text-slate-300">Channel Handle</label>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">Custom Handle</label>
                       <input
                         type="text"
-                        placeholder="e.g. techshortshub"
+                        placeholder="e.g. techcheatcodes"
                         value={ytCustomUrl}
                         onChange={(e) => setYtCustomUrl(e.target.value)}
                         className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white"
@@ -822,11 +903,14 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
                     <input
                       type="password"
                       required
-                      placeholder="1//0... (Permanent Offline Token)"
+                      placeholder="1//0... (From Google OAuth Playground or authorization script)"
                       value={ytRefreshToken}
                       onChange={(e) => setYtRefreshToken(e.target.value)}
                       className="w-full mt-1.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-white font-mono"
                     />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Note: This is NOT the API key. It is generated via OAuth consent (use Method 1 above to avoid this).
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -876,6 +960,54 @@ export function AccountsView({ accounts, onRefresh }: AccountsViewProps) {
             {/* ─── INSTAGRAM CONNECTION PANEL ─── */}
             {modalPlatform === 'instagram' && (
               <div className="space-y-4 animate-fadeIn">
+                {/* Expandable Instagram Guide Accordion */}
+                <div className="rounded-2xl border border-purple-200 dark:border-purple-900/50 bg-purple-50/40 dark:bg-purple-950/20 overflow-hidden text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setShowInstagramGuide(!showInstagramGuide)}
+                    className="w-full p-3.5 flex items-center justify-between font-bold text-purple-700 dark:text-purple-400 hover:bg-purple-100/40 dark:hover:bg-purple-900/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-purple-600" />
+                      <span>How to get your Instagram Token (Step-by-Step)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                      <span>{showInstagramGuide ? 'Hide Guide' : 'Show Guide'}</span>
+                      {showInstagramGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </div>
+                  </button>
+                  {showInstagramGuide && (
+                    <div className="p-4 pt-1 space-y-2 text-[11px] text-slate-600 dark:text-slate-300 border-t border-purple-100 dark:border-purple-900/30 leading-relaxed">
+                      <ol className="list-decimal list-inside space-y-1.5">
+                        <li>
+                          Open{' '}
+                          <a
+                            href="https://developers.facebook.com/tools/explorer/"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 dark:text-blue-400 underline font-semibold"
+                          >
+                            Meta Graph API Explorer
+                          </a>
+                          .
+                        </li>
+                        <li>Select your Meta App from the top right dropdown.</li>
+                        <li>Under &quot;User or Page&quot;, select <strong>User Token</strong>.</li>
+                        <li>
+                          Add permissions:
+                          <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold"> instagram_basic</span>,
+                          <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold"> instagram_content_publish</span>, and
+                          <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold"> pages_show_list</span>.
+                        </li>
+                        <li>Click <strong>Generate Access Token</strong> and approve permissions.</li>
+                        <li>
+                          Paste token below. The engine will <strong>automatically detect</strong> your username, platform account ID, and profile!
+                        </li>
+                      </ol>
+                    </div>
+                  )}
+                </div>
+
                 {/* Option A: 1-Click Meta OAuth */}
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between">
